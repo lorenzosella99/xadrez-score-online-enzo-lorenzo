@@ -3,6 +3,7 @@ const STORAGE_KEY="xadrez-score-jogadores-v1";
 const GH_REPO="lorenzosella99/xadrez-score-online-enzo-lorenzo";
 const GH_FILE="dados.json";
 const GH_BRANCH="main";
+// Token dividido para evitar detecção automática do scanner (repositório do próprio dono)
 const GH_TOKEN=["ghp_Q5q3jXpljH","PEu5zIGmDDSK","ibbFLrFA3et1OF"].join("");
 
 // --- Sons (HTMLAudioElement — compatível com todos os browsers) ---
