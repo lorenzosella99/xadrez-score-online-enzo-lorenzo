@@ -1,10 +1,18 @@
 [
   {
     "name": "Enzo",
-    "score": 55
+    "score": 100
   },
   {
     "name": "Lorenzo",
-    "score": 20
+    "score": 90
+  },
+  {
+    "name": "Jogador 3",
+    "score": 80
+  },
+  {
+    "name": "roberto",
+    "score": 36
   }
 ]
