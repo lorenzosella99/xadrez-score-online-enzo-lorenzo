@@ -114,7 +114,7 @@ function renderAdmin(){ const s=sorted(); $("adminRanking").innerHTML=rows(s,tru
 function show(id){
   document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
   $(id).classList.add("active");
-  document.querySelectorAll(".topnav-btn").forEach(b=>{
+  document.querySelectorAll(".bottom-btn").forEach(b=>{
     b.classList.toggle("active", b.dataset.screen===id);
   });
   if(id==="home") renderPublic();
