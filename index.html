@@ -1,65 +1,100 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Ranking online de pontuação de xadrez"><title>Xadrez Score Online</title><link rel="stylesheet" href="style.css"></head><body>
+<!doctype html><html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="description" content="Ranking e jogo de xadrez online">
+<meta name="theme-color" content="#1a0f07">
+<title>Xadrez Score Online</title>
+<link rel="stylesheet" href="style.css">
+</head><body>
+
+<!-- Peças de xadrez decorativas no fundo -->
+<div class="bg-pieces" aria-hidden="true">
+  <span style="top:4%;left:3%;font-size:5vw;transform:rotate(-15deg)">♜</span>
+  <span style="top:8%;left:18%;font-size:3.5vw;transform:rotate(10deg)">♞</span>
+  <span style="top:2%;left:38%;font-size:4vw;transform:rotate(-5deg)">♝</span>
+  <span style="top:6%;left:57%;font-size:5.5vw;transform:rotate(20deg)">♛</span>
+  <span style="top:3%;left:74%;font-size:3vw;transform:rotate(-12deg)">♚</span>
+  <span style="top:9%;left:88%;font-size:4.5vw;transform:rotate(8deg)">♟</span>
+  <span style="top:22%;left:7%;font-size:3vw;transform:rotate(25deg)">♟</span>
+  <span style="top:28%;left:92%;font-size:4vw;transform:rotate(-18deg)">♜</span>
+  <span style="top:42%;left:1%;font-size:5vw;transform:rotate(5deg)">♝</span>
+  <span style="top:48%;left:95%;font-size:3.5vw;transform:rotate(-22deg)">♞</span>
+  <span style="top:60%;left:5%;font-size:4vw;transform:rotate(15deg)">♛</span>
+  <span style="top:65%;left:90%;font-size:5vw;transform:rotate(-8deg)">♟</span>
+  <span style="top:75%;left:2%;font-size:3.5vw;transform:rotate(30deg)">♚</span>
+  <span style="top:80%;left:88%;font-size:4.5vw;transform:rotate(-20deg)">♜</span>
+  <span style="top:88%;left:12%;font-size:3vw;transform:rotate(12deg)">♞</span>
+  <span style="top:92%;left:50%;font-size:5vw;transform:rotate(-6deg)">♝</span>
+  <span style="top:85%;left:70%;font-size:3.5vw;transform:rotate(18deg)">♟</span>
+  <span style="top:35%;left:48%;font-size:6vw;transform:rotate(-10deg);opacity:.15">♛</span>
+</div>
 
 <!-- Áudio -->
 <audio id="audioClique" src="sons/clique/clique.mp3" preload="auto"></audio>
 <audio id="audioMusica" src="sons/musica/musica-fundo.mp3" preload="auto" loop></audio>
 
-<!-- Barra de navegação fixa no topo -->
+<!-- Top nav -->
 <nav class="topnav">
   <span class="topnav-brand">♟️ Xadrez Score</span>
   <div class="topnav-links">
     <button class="topnav-btn" data-screen="home">Início</button>
-    <button class="topnav-btn" data-screen="playerLogin">♟ Sou jogador</button>
-    <button class="topnav-btn" data-screen="adminLogin">⚙ Sou admin</button>
+    <button class="topnav-btn" data-screen="playerLogin">♟ Jogador</button>
+    <button class="topnav-btn" data-screen="adminLogin">⚙ Admin</button>
+    <button class="topnav-btn" data-screen="gameScreen">🎮 Jogar</button>
   </div>
 </nav>
 
 <main class="app">
+
+  <!-- HOME -->
   <section id="home" class="screen active">
     <h1>Ranking de jogadores</h1>
     <p class="subtitle">Veja quem está dominando o tabuleiro.</p>
+    <div class="home-cta">
+      <button class="cta-card" data-screen="playerLogin"><span>♟</span><strong>Sou jogador</strong><small>Ver meu blistx</small></button>
+      <button class="cta-card" data-screen="adminLogin"><span>⚙</span><strong>Sou admin</strong><small>Gerenciar scores</small></button>
+      <button class="cta-card highlight" data-screen="gameScreen"><span>🎮</span><strong>Jogar Xadrez</strong><small>Partida online</small></button>
+    </div>
     <section class="ranking-card">
       <div class="section-title"><h2>♟️ Todos os jogadores</h2><span id="playerCount"></span></div>
       <div id="publicRanking"></div>
     </section>
   </section>
 
+  <!-- LOGIN JOGADOR -->
   <section id="playerLogin" class="screen">
     <div class="panel">
       <h1>Área do jogador</h1>
-      <p>Digite exatamente o nome cadastrado para consultar seu blistx.</p>
+      <p>Digite exatamente o nome cadastrado.</p>
       <input id="playerName" maxlength="30" placeholder="Nome do jogador" autocomplete="off">
       <button id="enterPlayer" class="primary">Entrar</button>
       <p id="playerError" class="error"></p>
     </div>
   </section>
 
+  <!-- ÁREA JOGADOR -->
   <section id="playerArea" class="screen">
     <div class="section-title">
       <div><p class="eyebrow">JOGADOR</p><h1 id="welcomePlayer"></h1></div>
       <button id="logoutPlayer" class="secondary">Sair</button>
     </div>
     <div id="myScoreCard" class="score-highlight"></div>
-    <section class="ranking-card">
-      <div class="section-title"><h2>🏆 Top 10</h2></div>
-      <div id="playerRanking"></div>
-    </section>
-    <section class="ranking-card">
-      <div class="section-title"><h2>📋 Todos os jogadores</h2></div>
-      <div id="allRanking"></div>
-    </section>
+    <section class="ranking-card"><div class="section-title"><h2>🏆 Top 10</h2></div><div id="playerRanking"></div></section>
+    <section class="ranking-card"><div class="section-title"><h2>📋 Todos</h2></div><div id="allRanking"></div></section>
   </section>
 
+  <!-- LOGIN ADMIN -->
   <section id="adminLogin" class="screen">
     <div class="panel">
       <h1>Área administrativa</h1>
-      <p>Digite a senha de administrador para continuar.</p>
+      <p>Senha de administrador para continuar.</p>
       <input id="adminPassword" type="password" placeholder="Senha do administrador" autocomplete="current-password">
       <button id="enterAdmin" class="primary">Acessar painel</button>
       <p id="adminError" class="error"></p>
     </div>
   </section>
 
+  <!-- ÁREA ADMIN -->
   <section id="adminArea" class="screen">
     <div class="section-title">
       <div><p class="eyebrow">ADMINISTRADOR</p><h1>Gerenciar ranking</h1></div>
@@ -75,16 +110,51 @@
         <button id="saveScore" class="primary">Salvar alteração</button>
         <button id="cancelEdit" class="secondary hidden">Cancelar edição</button>
       </div>
-      <p class="hint">Toda alteração exige a senha do administrador novamente.</p>
+      <p class="hint">Toda alteração exige a senha do administrador.</p>
     </section>
     <section class="ranking-card">
       <div class="section-title"><h2>👥 Jogadores</h2><span id="adminCount"></span></div>
       <div id="adminRanking"></div>
     </section>
   </section>
+
+  <!-- JOGO DE XADREZ -->
+  <section id="gameScreen" class="screen">
+    <div class="game-header">
+      <h1>🎮 Jogar Xadrez</h1>
+      <div class="game-controls">
+        <button id="btnNewGame" class="primary game-btn">Nova partida</button>
+        <button id="btnUndoMove" class="secondary game-btn">↩ Desfazer</button>
+        <button id="btnFlipBoard" class="secondary game-btn">🔄 Girar</button>
+      </div>
+    </div>
+    <div class="game-layout">
+      <div class="game-left">
+        <div class="player-tag" id="topPlayerTag"><span class="p-color black-dot"></span><span id="topPlayerName">Pretas</span><span id="topTimer" class="timer">10:00</span></div>
+        <div id="chessboard" class="chessboard"></div>
+        <div class="player-tag" id="botPlayerTag"><span class="p-color white-dot"></span><span id="botPlayerName">Brancas</span><span id="botTimer" class="timer">10:00</span></div>
+      </div>
+      <div class="game-right">
+        <div class="game-status-card">
+          <div id="gameStatus" class="game-status">Selecione uma peça para começar</div>
+          <div id="capturedPieces" class="captured"></div>
+        </div>
+        <div class="moves-card">
+          <div class="moves-title">Movimentos</div>
+          <div id="movesList" class="moves-list"></div>
+        </div>
+        <div class="save-game-card">
+          <p class="hint">Partida salva automaticamente no GitHub.</p>
+          <button id="btnLoadGame" class="secondary game-btn" style="width:100%;margin-top:6px">📂 Carregar partida salva</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <div id="toast" class="toast"></div>
 <button id="btnMusica" class="btn-musica" title="Ativar música" onclick="toggleMusica()">🔇</button>
+<script src="chess.js"></script>
 <script src="script.js"></script>
 </body></html>
