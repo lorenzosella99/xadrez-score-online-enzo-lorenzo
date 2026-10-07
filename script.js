@@ -9,7 +9,7 @@ const GH_BRANCH = "main";
 const GH_FILE_RANK = "dados.json";
 const GH_FILE_GAME = "partida.json";
 const GH_FILE_CONFIG = "config.json";
-const GH_TOKEN = ["ghp_Q5q3jXpljH","PEu5zIGmDDSK","ibbFLrFA3et1OF"].join("");
+const GH_TOKEN = "";
 
 // ============================================================
 // REGRAS PADRÃO & TUTORIAL
@@ -112,11 +112,24 @@ function renderTutorialBoard(p){
   }
 }
 
-function atualizarBlistxInfo(){
-  const b=appConfig.blistx||{vitoria:5,derrota:-2,empate:1};
-  const html=`<span class="blistx-win">+${b.vitoria} vitória</span> <span class="blistx-draw">+${b.empate} empate</span> <span class="blistx-loss">${b.derrota} derrota</span>`;
+function getBlistxModo(modo){
+  const modos=appConfig.blistx?.modos||{};
+  return modos[modo]||{vitoria:5,empate:1,derrota:-2};
+}
+function atualizarBlistxInfo(modo){
+  const m=modo||appConfig.blistx?.modoSelecionado||"casual";
+  const b=getBlistxModo(m);
+  const nome={casual:"Casual",amistosa:"Amistosa",profissional:"Profissional"}[m]||m;
+  const html=`<span class="blistx-win">+${Number(b.vitoria)} vitória</span> <span class="blistx-draw">+${Number(b.empate)} empate</span> <span class="blistx-loss">${Number(b.derrota)} derrota</span> <small>• ${nome}</small>`;
   const home=$("blistxInfoHome"); if(home) home.innerHTML=html;
   const game=$("blistxInfoGame"); if(game) game.innerHTML=html;
+}
+function aplicarPontuacaoResultado(p,resultado,modo){
+  if(!p)return;
+  const b=getBlistxModo(modo||"casual");
+  const ganho=resultado==="vitória"?Number(b.vitoria):resultado==="empate"?Number(b.empate):Number(b.derrota);
+  p.score=Math.max(0,Number(p.score||0)+ganho);
+  return ganho;
 }
 
 // ============================================================
@@ -196,7 +209,15 @@ let appConfig = {
   twoFA:{question:"",answer:""},
   antifarm:{alertas:[]},
   regras:"",
-  blistx:{vitoria:5, derrota:-2, empate:1}
+  blistx:{
+    vitoria:5, derrota:-2, empate:1,
+    modoSelecionado:"casual",
+    modos:{
+      casual:{vitoria:5,empate:1,derrota:-2},
+      amistosa:{vitoria:0,empate:0,derrota:0},
+      profissional:{vitoria:15,empate:1,derrota:-8}
+    }
+  }
 };
 
 async function loadConfig(){
@@ -206,9 +227,53 @@ async function loadConfig(){
   appConfig.antifarm=appConfig.antifarm||{alertas:[]};
   appConfig.regras=appConfig.regras||"";
   appConfig.blistx=appConfig.blistx||{vitoria:5,derrota:-2,empate:1};
+  appConfig.blistx.modos=appConfig.blistx.modos||{
+    casual:{vitoria:Number(appConfig.blistx.vitoria??5),empate:Number(appConfig.blistx.empate??1),derrota:Number(appConfig.blistx.derrota??-2)},
+    amistosa:{vitoria:0,empate:0,derrota:0},
+    profissional:{vitoria:15,empate:1,derrota:-8}
+  };
+  appConfig.blistx.modoSelecionado=appConfig.blistx.modoSelecionado||"casual";
+  for(const modo of ["casual","amistosa","profissional"]){
+    appConfig.blistx.modos[modo]=appConfig.blistx.modos[modo]||{vitoria:0,empate:0,derrota:0};
+  }
 }
 async function saveConfig(){
   await ghPut(GH_FILE_CONFIG,JSON.stringify(appConfig,null,2),"Atualizar config");
+}
+
+// ============================================================
+// AUTENTICAÇÃO POR JOGADOR
+// ============================================================
+function normalizarJogador(p){
+  p.historico=p.historico||[];
+  p.suspeitoFarm=!!p.suspeitoFarm;
+  p.auth=p.auth||{};
+  p.auth.twoFA=p.auth.twoFA||{enabled:false,type:"password",question:"",secretHash:""};
+  return p;
+}
+function normalizarTodosJogadores(){players=players.map(normalizarJogador);}
+function renderTwoFAPlayers(){
+  const el=$("twofa-cfg-player");
+  if(!el)return;
+  const atual=el.value;
+  el.innerHTML='<option value="">Selecione o jogador</option>'+sorted().map(p=>'<option value="'+esc(p.name)+'">'+esc(p.name)+'</option>').join("");
+  if(players.some(p=>p.name===atual))el.value=atual;
+}
+function carregarTwoFAJogador(){
+  const name=$("twofa-cfg-player")?.value;
+  const p=players.find(x=>x.name===name);
+  const cfg=p?.auth?.twoFA||{enabled:false,type:"password",question:"",secretHash:""};
+  if($("twofa-cfg-enabled"))$("twofa-cfg-enabled").checked=!!cfg.enabled;
+  if($("twofa-cfg-type"))$("twofa-cfg-type").value=cfg.type||"password";
+  if($("twofa-cfg-question"))$("twofa-cfg-question").value=cfg.question||"";
+  if($("twofa-cfg-answer"))$("twofa-cfg-answer").value="";
+  atualizarCamposTwoFA();
+}
+function atualizarCamposTwoFA(){
+  const type=$("twofa-cfg-type")?.value||"password";
+  const q=$("twofa-question-fields");
+  if(q)q.style.display=type==="question"?"grid":"block";
+  if($("twofa-cfg-question"))$("twofa-cfg-question").disabled=type!=="question";
 }
 
 // ============================================================
@@ -357,34 +422,38 @@ window.dismissAlerta=(nome,data)=>{
 };
 
 // ============================================================
-// 2FA
+// 2FA POR JOGADOR
 // ============================================================
-let pendingAction=null; // {fn, label}
+let pending2FAAction=null;
+let pending2FAConfig=null;
 
-function verificar2FA(label,fn){
-  const q=appConfig.twoFA&&appConfig.twoFA.question;
-  if(!q){fn();return;}
+async function verificar2FA(label,fn,cfg){
+  if(!cfg?.enabled||!cfg?.secretHash){fn();return;}
   pending2FAAction={label,fn};
-  $("twofa-question").textContent=q;
+  pending2FAConfig=cfg;
+  const isQuestion=cfg.type==="question";
+  $("twofa-question").textContent=isQuestion?(cfg.question||"Responda à pergunta secreta:"):"Digite a senha da segunda etapa:";
   $("twofa-answer").value="";
+  $("twofa-answer").type=isQuestion?"text":"password";
+  $("twofa-answer").placeholder=isQuestion?"Sua resposta":"Senha de 2 fatores";
   $("twofa-error").textContent="";
   $("twoFAModal").classList.add("open");
+  setTimeout(()=>$("twofa-answer").focus(),50);
 }
-let pending2FAAction=null;
-
-$("twoFAConfirm")&&($("twoFAConfirm").onclick=()=>{
-  const resp=$("twofa-answer").value.trim().toLowerCase();
-  const correta=(appConfig.twoFA.answer||"").trim().toLowerCase();
-  if(resp!==correta){$("twofa-error").textContent="Resposta incorreta.";return;}
+$("twoFAConfirm")&&($("twoFAConfirm").onclick=async()=>{
+  const resp=$("twofa-answer").value.trim();
+  const correta=await sha256(resp);
+  if(!pending2FAConfig||correta!==pending2FAConfig.secretHash){
+    $("twofa-error").textContent="Senha ou resposta incorreta.";return;
+  }
   $("twoFAModal").classList.remove("open");
   if(pending2FAAction)pending2FAAction.fn();
-  pending2FAAction=null;
+  pending2FAAction=null;pending2FAConfig=null;
 });
 $("twoFACancel")&&($("twoFACancel").onclick=()=>{
   $("twoFAModal").classList.remove("open");
-  pending2FAAction=null;
+  pending2FAAction=null;pending2FAConfig=null;
 });
-
 // ============================================================
 // PERFIL PÚBLICO
 // ============================================================
@@ -474,16 +543,17 @@ let multiHosting=false; // true se fui eu quem criou a sala
 
 function gerarSalaId(){return Math.random().toString(36).slice(2,8).toUpperCase();}
 
-async function criarSalaMulti(minhaCorEscolhida){
+async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
   const meuNome=currentPlayer||"Jogador";
   const sala=gerarSalaId();
+  const modo=modoEscolhido||"casual";
   multiSala=sala;
   multiMinhaCor=minhaCorEscolhida;
   multiHosting=true;
   initGame();
   multiMode=true;
   const estado={
-    modo:"multi",sala,
+    modo:"multi",tipoJogo:modo,sala,
     brancas:minhaCorEscolhida==="w"?meuNome:"...",
     pretas:minhaCorEscolhida==="b"?meuNome:"...",
     turno:"w",
@@ -654,7 +724,8 @@ function registrarResultadoMulti(estado){
   else resultado="derrota";
   const adv=sou==="w"?estado.pretas:estado.brancas;
   p.historico=p.historico||[];
-  p.historico.push({adversario:adv,resultado,data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
+  p.historico.push({adversario:adv,resultado,modo:estado.tipoJogo||"casual",data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
+  aplicarPontuacaoResultado(p,resultado,estado.tipoJogo||"casual");
   analisarFarm(p.name);
   persistAndSync();
 }
@@ -822,7 +893,8 @@ function registrarResultadoLocal(vencedor, solitario=false){
   const topName=$("topPlayerName").textContent;
   const adv=solitario?"(solo)":topName;
   p.historico=p.historico||[];
-  p.historico.push({adversario:adv,resultado,data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
+  p.historico.push({adversario:adv,resultado,modo:"casual",data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
+  aplicarPontuacaoResultado(p,resultado,"casual");
   analisarFarm(p.name);
   persistAndSync();
 }
@@ -934,11 +1006,11 @@ $("enterPlayer").onclick=()=>{
   playClique();
   const n=$("playerName").value.trim(),p=players.find(x=>x.name.toLowerCase()===n.toLowerCase());
   if(!p){$("playerError").textContent="Jogador não encontrado.";return;}
-  // 2FA check
-  if(appConfig.twoFA&&appConfig.twoFA.question){
+  const cfg=p.auth?.twoFA;
+  if(cfg?.enabled&&cfg.secretHash){
     verificar2FA("Login",()=>{
       currentPlayer=p.name;$("playerError").textContent="";show("playerArea");
-    });
+    },cfg);
     return;
   }
   currentPlayer=p.name;$("playerError").textContent="";show("playerArea");
@@ -964,7 +1036,7 @@ $("saveScore").onclick=async()=>{
   if(await sha256(password)!==ADMIN_HASH){toast("Senha incorreta. Cancelado.");return;}
   if(editingIndex===null){
     if(players.some(p=>p.name.toLowerCase()===name.toLowerCase())){toast("Esse jogador já existe.");return;}
-    players.push({name,score,historico:[],suspeitoFarm:false});
+    players.push({name,score,historico:[],suspeitoFarm:false,auth:{twoFA:{enabled:false,type:"password",question:"",secretHash:""}}});
   }else{
     if(players.some((p,i)=>i!==editingIndex&&p.name.toLowerCase()===name.toLowerCase())){toast("Esse jogador já existe.");return;}
     const existing=players[editingIndex];
@@ -1001,16 +1073,30 @@ $("cancelEdit").onclick=()=>{
 };
 
 // Configurar 2FA (admin)
+$("twofa-cfg-player")&&($("twofa-cfg-player").onchange=carregarTwoFAJogador);
+$("twofa-cfg-type")&&($("twofa-cfg-type").onchange=atualizarCamposTwoFA);
 $("btnSave2FA")&&($("btnSave2FA").onclick=async()=>{
+  const name=$("twofa-cfg-player").value;
+  const p=players.find(x=>x.name===name);
+  if(!p){toast("Selecione um jogador.");return;}
+  const enabled=$("twofa-cfg-enabled").checked;
+  const type=$("twofa-cfg-type").value;
   const q=$("twofa-cfg-question").value.trim();
-  const a=$("twofa-cfg-answer").value.trim();
-  if(!q||!a){toast("Preencha pergunta e resposta.");return;}
+  const a=$("twofa-cfg-answer").value;
+  if(enabled&&!a&&!p.auth?.twoFA?.secretHash){toast("Digite a senha/resposta da segunda etapa.");return;}
+  if(enabled&&type==="question"&&!q){toast("Digite a pergunta secreta.");return;}
   const password=prompt("Senha do administrador:");
   if(password===null)return;
   if(await sha256(password)!==ADMIN_HASH){toast("Senha incorreta.");return;}
-  appConfig.twoFA={question:q,answer:a.toLowerCase()};
-  await saveConfig();
-  toast("2FA configurado ✓");
+  p.auth=p.auth||{};
+  p.auth.twoFA={
+    enabled,
+    type,
+    question:type==="question"?q:"",
+    secretHash:a?await sha256(a):((p.auth.twoFA||{}).secretHash||"")
+  };
+  persist();await persistAndSync();carregarTwoFAJogador();
+  toast(enabled?"2FA ativado para "+p.name+" ✓":"2FA desativado para "+p.name+" ✓");
 });
 
 // Configurar Regras (admin)
@@ -1025,17 +1111,30 @@ $("btnSaveRegras")&&($("btnSaveRegras").onclick=async()=>{
 });
 
 // Configurar blistx por resultado
+$("blistxModo")&&($("blistxModo").onchange=()=>{
+  const modo=$("blistxModo").value;
+  const b=getBlistxModo(modo);
+  $("blistxVitoria").value=b.vitoria;
+  $("blistxEmpate").value=b.empate;
+  $("blistxDerrota").value=b.derrota;
+  atualizarBlistxInfo(modo);
+});
 $("btnSaveBlistx")&&($("btnSaveBlistx").onclick=async()=>{
-  const v=parseInt($("blistxVitoria").value)||5;
-  const d=parseInt($("blistxDerrota").value)||-2;
-  const e=parseInt($("blistxEmpate").value)||1;
+  const modo=$("blistxModo").value;
+  const v=Number($("blistxVitoria").value);
+  const d=Number($("blistxDerrota").value);
+  const e=Number($("blistxEmpate").value);
+  if(!Number.isFinite(v)||!Number.isFinite(d)||!Number.isFinite(e)){toast("Valores de pontuação inválidos.");return;}
   const password=prompt("Senha do administrador:");
   if(password===null)return;
   if(await sha256(password)!==ADMIN_HASH){toast("Senha incorreta.");return;}
-  appConfig.blistx={vitoria:v,derrota:d,empate:e};
+  appConfig.blistx.modos=appConfig.blistx.modos||{};
+  appConfig.blistx.modos[modo]={vitoria:v,derrota:d,empate:e};
+  appConfig.blistx.modoSelecionado=modo;
+  appConfig.blistx.vitoria=v;appConfig.blistx.derrota=d;appConfig.blistx.empate=e;
   await saveConfig();
-  atualizarBlistxInfo();
-  toast("Pontuação salva ✓");
+  atualizarBlistxInfo(modo);
+  toast("Pontuação do modo "+modo+" salva ✓");
 });
 
 // Modal Regras
@@ -1087,11 +1186,11 @@ $("btnEntrarSala")&&($("btnEntrarSala").onclick=()=>{
 });
 $("btnCriarBrancas")&&($("btnCriarBrancas").onclick=()=>{
   $("multiModal").classList.remove("open");
-  criarSalaMulti("w");
+  criarSalaMulti("w",$("multiModeSelect")?.value||"casual");
 });
 $("btnCriarPretas")&&($("btnCriarPretas").onclick=()=>{
   $("multiModal").classList.remove("open");
-  criarSalaMulti("b");
+  criarSalaMulti("b",$("multiModeSelect")?.value||"casual");
 });
 $("btnCloseMultiModal")&&($("btnCloseMultiModal").onclick=()=>{
   $("multiModal").classList.remove("open");
@@ -1110,13 +1209,15 @@ $("backFromProfile")&&($("backFromProfile").onclick=()=>{playClique();show("home
 renderPublic();
 initGame();
 loadConfig().then(()=>{
-  if($("twofa-cfg-question")&&appConfig.twoFA){
-    $("twofa-cfg-question").value=appConfig.twoFA.question||"";
-  }
+  normalizarTodosJogadores();
+  renderTwoFAPlayers();
+  carregarTwoFAJogador();
   if($("adminRegrasText"))$("adminRegrasText").value=appConfig.regras||"";
-  if($("blistxVitoria"))$("blistxVitoria").value=appConfig.blistx?.vitoria??5;
-  if($("blistxDerrota"))$("blistxDerrota").value=appConfig.blistx?.derrota??-2;
-  if($("blistxEmpate"))$("blistxEmpate").value=appConfig.blistx?.empate??1;
+  if($("blistxModo"))$("blistxModo").value=appConfig.blistx?.modoSelecionado||"casual";
+  const bm=getBlistxModo($("blistxModo")?.value||"casual");
+  if($("blistxVitoria"))$("blistxVitoria").value=bm.vitoria;
+  if($("blistxDerrota"))$("blistxDerrota").value=bm.derrota;
+  if($("blistxEmpate"))$("blistxEmpate").value=bm.empate;
   atualizarBlistxInfo();
 });
 // Tutorial: inicializar botões de peça
@@ -1131,8 +1232,8 @@ document.querySelectorAll(".tut-peca-btn").forEach((b,i)=>{
     try{
       const d=JSON.parse(raw);
       if(Array.isArray(d)&&d.length){
-        players=d.map(p=>({historico:[],suspeitoFarm:false,...p})).filter(x=>x&&typeof x.name==="string"&&Number.isFinite(Number(x.score)));
-        persist();renderPublic();
+        players=d.map(p=>normalizarJogador({historico:[],suspeitoFarm:false,...p})).filter(x=>x&&typeof x.name==="string"&&Number.isFinite(Number(x.score)));
+        persist();renderPublic();renderAdmin();renderTwoFAPlayers();
       }
     }catch{}
   }
