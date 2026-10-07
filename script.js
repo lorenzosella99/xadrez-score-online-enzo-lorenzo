@@ -536,40 +536,133 @@ async function sha256(v){
 */
 let multiMode=false;
 let multiSala=null;
-let multiMinhaCor=null; // "w" ou "b"
-let multiPollInterval=null;
+let multiMinhaCor=null;
+let multiChannel=null;
+let multiHosting=false;
 let multiVersaoLocal=0;
-let multiHosting=false; // true se fui eu quem criou a sala
+
+const XADREZ_SUPABASE_URL=window.XADREZ_SUPABASE_URL||"";
+const XADREZ_SUPABASE_KEY=window.XADREZ_SUPABASE_KEY||"";
+const supabaseClient=(window.supabase&&XADREZ_SUPABASE_URL&&XADREZ_SUPABASE_KEY)
+  ? window.supabase.createClient(XADREZ_SUPABASE_URL,XADREZ_SUPABASE_KEY)
+  : null;
 
 function gerarSalaId(){return Math.random().toString(36).slice(2,8).toUpperCase();}
-function salvarSalaLocal(estado){
-  try{
-    const salas=JSON.parse(localStorage.getItem(MULTI_LOCAL_KEY)||"{}");
-    salas[estado.sala]=estado;
-    localStorage.setItem(MULTI_LOCAL_KEY,JSON.stringify(salas));
-    return true;
-  }catch{return false;}
-}
-function lerSalaLocal(codigo){
-  try{
-    const salas=JSON.parse(localStorage.getItem(MULTI_LOCAL_KEY)||"{}");
-    return salas[String(codigo).toUpperCase()]||null;
-  }catch{return null;}
-}
-function apagarSalaLocal(codigo){
-  try{
-    const salas=JSON.parse(localStorage.getItem(MULTI_LOCAL_KEY)||"{}");
-    delete salas[String(codigo).toUpperCase()];
-    localStorage.setItem(MULTI_LOCAL_KEY,JSON.stringify(salas));
-  }catch{}
-}
-function emitirSalaLocal(estado){
-  salvarSalaLocal(estado);
-  try{new BroadcastChannel("xadrez-score-multiplayer").postMessage(estado);}catch{}
+
+function garantirSupabase(){
+  if(!supabaseClient){
+    toast("Multiplayer online não está configurado no servidor.");
+    updateStatus("Servidor online não configurado.");
+    return false;
+  }
+  return true;
 }
 
+function pararPollingMulti(){
+  if(multiChannel&&supabaseClient){
+    try{supabaseClient.removeChannel(multiChannel);}catch{}
+  }
+  multiChannel=null;
+}
+
+async function lerSalaOnline(codigo){
+  if(!garantirSupabase())return null;
+  const {data,error}=await supabaseClient.from("xadrez_salas").select("*").eq("sala",String(codigo).toUpperCase()).maybeSingle();
+  if(error){console.error("Supabase leitura:",error);toast("Erro ao consultar a sala.");return null;}
+  return data;
+}
+
+async function salvarSalaOnline(estado){
+  if(!garantirSupabase())return false;
+  const {error}=await supabaseClient.from("xadrez_salas").upsert({
+    sala:String(estado.sala).toUpperCase(),
+    estado,
+    atualizada_em:new Date().toISOString()
+  },{onConflict:"sala"});
+  if(error){console.error("Supabase gravação:",error);toast("Erro ao sincronizar a partida.");return false;}
+  return true;
+}
+
+function assinarSalaMulti(codigo){
+  pararPollingMulti();
+  if(!supabaseClient)return;
+  multiChannel=supabaseClient
+    .channel("xadrez-sala-"+String(codigo).toUpperCase())
+    .on("postgres_changes",{
+      event:"*",
+      schema:"public",
+      table:"xadrez_salas",
+      filter:"sala=eq."+String(codigo).toUpperCase()
+    },payload=>{
+      const estado=payload.new?.estado||null;
+      if(estado)processarEstadoMulti(estado);
+    })
+    .subscribe(status=>{
+      if(status==="CHANNEL_ERROR")console.error("Supabase Realtime: CHANNEL_ERROR");
+    });
+}
+
+function processarEstadoMulti(estado){
+  if(!estado||estado.sala!==multiSala)return;
+  if((estado.versao||0)<=multiVersaoLocal)return;
+  multiVersaoLocal=estado.versao||0;
+
+  if(estado.status==="aguardando"&&multiHosting){
+    if(estado.brancas!=="..."&&estado.pretas!=="..."){
+      updateStatus(`${estado.pretas} entrou! Partida iniciada. Você é as Brancas.`);
+      $("topPlayerName").textContent=estado.pretas;
+      $("botPlayerName").textContent=estado.brancas;
+      toast("Oponente conectado!");
+    }
+    return;
+  }
+
+  if(estado.status==="encerrado"){
+    const res=estado.resultado;
+    const eu=multiMinhaCor;
+    if(res==="empate")updateStatus("½ Empate!");
+    else if(res===eu)updateStatus("🎉 Você venceu!");
+    else updateStatus("Você perdeu.");
+    registrarResultadoMulti(estado);
+    pararPollingMulti();
+    multiMode=false;
+    renderBoard();
+    return;
+  }
+
+  if(!estado.tabuleiro)return;
+  try{
+    const novoState=Chess.deserialize(estado.tabuleiro);
+    novoState.captured={w:[],b:[]};
+    novoState.san=[];
+    const tmpB=Chess.initBoard();
+    const tmpS={board:tmpB,turn:"w",enPassant:null,castling:{wK:true,wQ:true,bK:true,bQ:true},history:[]};
+    for(const m of novoState.history){
+      const san=Chess.moveToSAN(tmpS.board,m,tmpS);
+      if(tmpS.board[m.tr][m.tc])novoState.captured[Chess.color(tmpS.board[m.fr][m.fc])].push(tmpS.board[m.tr][m.tc]);
+      atualizarCastlingState(tmpS,m);
+      const p2=tmpS.board[m.fr][m.fc];
+      tmpS.enPassant=(p2==="wP"||p2==="bP")&&Math.abs(m.tr-m.fr)===2?[Math.floor((m.fr+m.tr)/2),m.fc]:null;
+      tmpS.board=Chess.applyMove(Chess.cloneBoard(tmpS.board),m,tmpS,m.promote||"Q");
+      tmpS.history.push(m);
+      tmpS.turn=tmpS.turn==="w"?"b":"w";
+      novoState.san.push(san);
+    }
+    gameState=novoState;
+    gameOver=false;
+    const status=Chess.gameStatus(gameState.board,gameState.turn,gameState);
+    if(estado.brancas!=="..."&&estado.pretas!=="..."){
+      $("topPlayerName").textContent=boardFlipped?estado.brancas:estado.pretas;
+      $("botPlayerName").textContent=boardFlipped?estado.pretas:estado.brancas;
+    }
+    if(status==="check")updateStatus(`⚠️ Xeque! Vez das ${gameState.turn==="w"?"Brancas":"Pretas"}.`);
+    else updateStatus(`Vez das ${gameState.turn==="w"?"Brancas":"Pretas"}.`);
+    renderBoard();
+  }catch(e){console.error("Supabase estado:",e);}
+}
 
 async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
+  if(!garantirSupabase())return;
   gameMode="local";
   if($("gameModeSelect"))$("gameModeSelect").value="local";
   atualizarModoJogoUI();
@@ -590,169 +683,77 @@ async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
     status:"aguardando",
     resultado:null,
     lastMove:Date.now(),
-    versao:0
+    versao:1
   };
-  multiVersaoLocal=0;
-  const remoteOk=await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Criar sala multiplayer "+sala);
-  multiLocalRoom=!remoteOk;
-  if(multiLocalRoom)salvarSalaLocal(estado);
-  updateStatus(`Sala criada: ${sala}. ${multiLocalRoom?"Compartilhe o código nesta mesma máquina/navegador para teste.":"Aguardando oponente..." }`);
+  multiVersaoLocal=1;
+  const ok=await salvarSalaOnline(estado);
+  if(!ok)return;
+  assinarSalaMulti(sala);
+  updateStatus(`Sala criada: ${sala}. Aguardando oponente pela internet...`);
   toast(`Código da sala: ${sala}`);
   $("multiRoomCode").textContent=`Sala: ${sala}`;
   $("multiRoomCode").style.display="block";
-  iniciarPollingMulti();
 }
 
 async function entrarSalaMulti(salaId){
+  if(!garantirSupabase())return;
   gameMode="local";
   if($("gameModeSelect"))$("gameModeSelect").value="local";
   atualizarModoJogoUI();
   const meuNome=currentPlayer||"Jogador";
-  let raw=await ghGet(GH_FILE_GAME);
-  let estado=null;
-  if(raw){try{estado=JSON.parse(raw);}catch{}}
-  if(!estado||estado.sala!==salaId.toUpperCase()){
-    estado=lerSalaLocal(salaId);
-    multiLocalRoom=!!estado;
-  }else{
-    multiLocalRoom=false;
-  }
-  if(!estado){toast("Sala não encontrada. Verifique o código.");return;}
-  if(!estado.sala||estado.sala!==salaId.toUpperCase()){toast("Código de sala inválido.");return;}
-  if(estado.status!=="aguardando"){toast("Sala já está em jogo ou encerrada.");return;}
-  multiSala=salaId.toUpperCase();
+  const codigo=String(salaId||"").trim().toUpperCase();
+  if(!/^[A-Z0-9]{6}$/.test(codigo)){toast("Código de sala inválido.");return;}
+  const estado=await lerSalaOnline(codigo);
+  if(!estado||!estado.estado){toast("Sala não encontrada. Verifique o código.");return;}
+  const s=estado.estado;
+  if(s.sala!==codigo){toast("Código de sala inválido.");return;}
+  if(s.status!=="aguardando"){toast("Sala já está em jogo ou encerrada.");return;}
+  multiSala=codigo;
   multiHosting=false;
-  // Determinar minha cor
-  if(estado.brancas==="..."){multiMinhaCor="w";estado.brancas=meuNome;}
-  else{multiMinhaCor="b";estado.pretas=meuNome;}
-  estado.status="jogando";
-  estado.versao=(estado.versao||0)+1;
-  multiVersaoLocal=estado.versao;
-  gameState=Chess.deserialize(estado.tabuleiro);
-  gameState.captured={w:[],b:[]};gameState.san=[];gameState.history.forEach(()=>{});
+  if(s.brancas==="..."){multiMinhaCor="w";s.brancas=meuNome;}
+  else if(s.pretas==="..."){multiMinhaCor="b";s.pretas=meuNome;}
+  else{toast("A sala já tem dois jogadores.");return;}
+  s.status="jogando";
+  s.versao=(s.versao||0)+1;
+  multiVersaoLocal=s.versao;
+  gameState=Chess.deserialize(s.tabuleiro);
+  gameState.captured={w:[],b:[]};
+  gameState.san=[];
   multiMode=true;
-  if(multiLocalRoom)salvarSalaLocal(estado);
-  else await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Entrar sala "+salaId);
+  if(!(await salvarSalaOnline(s)))return;
+  assinarSalaMulti(codigo);
   updateStatus(`Partida iniciada! Você é as ${multiMinhaCor==="w"?"Brancas":"Pretas"}.`);
-  $("topPlayerName").textContent=multiMinhaCor==="w"?estado.pretas:estado.brancas;
-  $("botPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
+  $("topPlayerName").textContent=multiMinhaCor==="w"?s.pretas:s.brancas;
+  $("botPlayerName").textContent=multiMinhaCor==="w"?s.brancas:s.pretas;
+  $("multiRoomCode").textContent=`Sala: ${codigo}`;
+  $("multiRoomCode").style.display="block";
   renderBoard();
-  iniciarPollingMulti();
-}
-
-function iniciarPollingMulti(){
-  pararPollingMulti();
-  multiPollInterval=setInterval(pollMulti,3000);
-}
-function pararPollingMulti(){
-  if(multiPollInterval){clearInterval(multiPollInterval);multiPollInterval=null;}
-}
-
-async function pollMulti(){
-  if(!multiMode||!multiSala)return;
-  let raw=null,estado=null;
-  if(!multiLocalRoom)raw=await ghGet(GH_FILE_GAME);
-  if(raw){try{estado=JSON.parse(raw);}catch{}}
-  if(!estado&&multiLocalRoom)estado=lerSalaLocal(multiSala);
-  if(!estado||!estado.sala||estado.sala!==multiSala)return;
-  // Chegou atualização nova?
-  if((estado.versao||0)<=multiVersaoLocal)return;
-  multiVersaoLocal=estado.versao||0;
-
-  if(estado.status==="aguardando"&&multiHosting){
-    // Oponente entrou
-    if(estado.brancas!=="..."&&estado.pretas!=="..."){
-      updateStatus(`${estado.pretas} entrou! Partida iniciada. Você é as Brancas.`);
-      $("topPlayerName").textContent=estado.pretas;
-      $("botPlayerName").textContent=estado.brancas;
-      toast("Oponente conectado!");
-    }
-    return;
-  }
-
-  if(estado.status==="encerrado"){
-    pararPollingMulti();
-    const res=estado.resultado;
-    const eu=multiMinhaCor;
-    if(res==="empate"){updateStatus("½ Empate!");}
-    else if(res===eu){updateStatus("🎉 Você venceu!");}
-    else{updateStatus("Você perdeu.");}
-    registrarResultadoMulti(estado);
-    multiMode=false;
-    renderBoard();
-    return;
-  }
-
-  // Atualizar tabuleiro com o movimento do oponente
-  if(estado.tabuleiro){
-    try{
-      const novoState=Chess.deserialize(estado.tabuleiro);
-      // Rebuildar san e captured
-      novoState.captured={w:[],b:[]};
-      novoState.san=[];
-      const tmpB=Chess.initBoard();
-      const tmpS={board:tmpB,turn:"w",enPassant:null,castling:{wK:true,wQ:true,bK:true,bQ:true},history:[]};
-      for(const m of novoState.history){
-        const san=Chess.moveToSAN(tmpS.board,m,tmpS);
-        if(tmpS.board[m.tr][m.tc])novoState.captured[Chess.color(tmpS.board[m.fr][m.fc])].push(tmpS.board[m.tr][m.tc]);
-        atualizarCastlingState(tmpS,m);
-        const p2=tmpS.board[m.fr][m.fc];
-        tmpS.enPassant=(p2==="wP"||p2==="bP")&&Math.abs(m.tr-m.fr)===2?[Math.floor((m.fr+m.tr)/2),m.fc]:null;
-        tmpS.board=Chess.applyMove(Chess.cloneBoard(tmpS.board),m,tmpS,m.promote||"Q");
-        tmpS.history.push(m);tmpS.turn=tmpS.turn==="w"?"b":"w";
-        novoState.san.push(san);
-      }
-      gameState=novoState;
-      gameOver=false;
-      const status=Chess.gameStatus(gameState.board,gameState.turn,gameState);
-      if(estado.brancas!=="..."&&estado.pretas!=="..."){
-        $("topPlayerName").textContent=boardFlipped?estado.brancas:estado.pretas;
-        $("botPlayerName").textContent=boardFlipped?estado.pretas:estado.brancas;
-      }
-      if(status==="check")updateStatus(`⚠️ Xeque! Vez das ${gameState.turn==="w"?"Brancas":"Pretas"}.`);
-      else updateStatus(`Vez das ${gameState.turn==="w"?"Brancas":"Pretas"}.`);
-      renderBoard();
-    }catch(e){console.error("pollMulti parse error",e);}
-  }
-}
-
-function atualizarCastlingState(s,m){
-  if(m.fr===7&&m.fc===4){s.castling.wK=false;s.castling.wQ=false;}
-  if(m.fr===0&&m.fc===4){s.castling.bK=false;s.castling.bQ=false;}
-  if(m.fr===7&&m.fc===0)s.castling.wQ=false;
-  if(m.fr===7&&m.fc===7)s.castling.wK=false;
-  if(m.fr===0&&m.fc===0)s.castling.bQ=false;
-  if(m.fr===0&&m.fc===7)s.castling.bK=false;
 }
 
 async function enviarMovimentoMulti(){
-  if(!multiMode||!multiSala)return;
-  let raw=null,estado=null;
-  if(!multiLocalRoom)raw=await ghGet(GH_FILE_GAME);
-  if(raw){try{estado=JSON.parse(raw);}catch{}}
-  if(!estado&&multiLocalRoom)estado=lerSalaLocal(multiSala);
+  if(!multiMode||!multiSala||!garantirSupabase())return;
+  const row=await lerSalaOnline(multiSala);
+  const estado=row?.estado;
   if(!estado)return;
+  if(estado.status==="encerrado")return;
   estado.tabuleiro=Chess.serialize(gameState);
   estado.turno=gameState.turn;
   estado.versao=(estado.versao||0)+1;
   estado.lastMove=Date.now();
   multiVersaoLocal=estado.versao;
-  if(multiLocalRoom)emitirSalaLocal(estado);
-  else await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Movimento "+estado.brancas+" vs "+estado.pretas);
+  await salvarSalaOnline(estado);
 }
 
 async function encerrarPartidaMulti(resultado){
-  if(!multiSala)return;
-  let raw=null,estado={};
-  if(!multiLocalRoom)raw=await ghGet(GH_FILE_GAME);
-  try{if(raw)estado=JSON.parse(raw);}catch{}
-  if(multiLocalRoom)estado=lerSalaLocal(multiSala)||{};
+  if(!multiSala||!garantirSupabase())return;
+  const row=await lerSalaOnline(multiSala);
+  const estado=row?.estado||{};
   estado.status="encerrado";
   estado.resultado=resultado;
   estado.versao=(estado.versao||0)+1;
   estado.tabuleiro=Chess.serialize(gameState);
-  if(multiLocalRoom){emitirSalaLocal(estado);setTimeout(()=>apagarSalaLocal(multiSala),60000);}
-  else await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Partida encerrada");
+  estado.lastMove=Date.now();
+  await salvarSalaOnline(estado);
   pararPollingMulti();
 }
 
