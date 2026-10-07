@@ -542,8 +542,37 @@ let multiVersaoLocal=0;
 let multiHosting=false; // true se fui eu quem criou a sala
 
 function gerarSalaId(){return Math.random().toString(36).slice(2,8).toUpperCase();}
+function salvarSalaLocal(estado){
+  try{
+    const salas=JSON.parse(localStorage.getItem(MULTI_LOCAL_KEY)||"{}");
+    salas[estado.sala]=estado;
+    localStorage.setItem(MULTI_LOCAL_KEY,JSON.stringify(salas));
+    return true;
+  }catch{return false;}
+}
+function lerSalaLocal(codigo){
+  try{
+    const salas=JSON.parse(localStorage.getItem(MULTI_LOCAL_KEY)||"{}");
+    return salas[String(codigo).toUpperCase()]||null;
+  }catch{return null;}
+}
+function apagarSalaLocal(codigo){
+  try{
+    const salas=JSON.parse(localStorage.getItem(MULTI_LOCAL_KEY)||"{}");
+    delete salas[String(codigo).toUpperCase()];
+    localStorage.setItem(MULTI_LOCAL_KEY,JSON.stringify(salas));
+  }catch{}
+}
+function emitirSalaLocal(estado){
+  salvarSalaLocal(estado);
+  try{new BroadcastChannel("xadrez-score-multiplayer").postMessage(estado);}catch{}
+}
+
 
 async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
+  gameMode="local";
+  if($("gameModeSelect"))$("gameModeSelect").value="local";
+  atualizarModoJogoUI();
   const meuNome=currentPlayer||"Jogador";
   const sala=gerarSalaId();
   const modo=modoEscolhido||"casual";
@@ -564,8 +593,10 @@ async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
     versao:0
   };
   multiVersaoLocal=0;
-  await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Criar sala multiplayer "+sala);
-  updateStatus(`Sala criada: ${sala}. Aguardando oponente...`);
+  const remoteOk=await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Criar sala multiplayer "+sala);
+  multiLocalRoom=!remoteOk;
+  if(multiLocalRoom)salvarSalaLocal(estado);
+  updateStatus(`Sala criada: ${sala}. ${multiLocalRoom?"Compartilhe o código nesta mesma máquina/navegador para teste.":"Aguardando oponente..." }`);
   toast(`Código da sala: ${sala}`);
   $("multiRoomCode").textContent=`Sala: ${sala}`;
   $("multiRoomCode").style.display="block";
@@ -573,11 +604,20 @@ async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
 }
 
 async function entrarSalaMulti(salaId){
+  gameMode="local";
+  if($("gameModeSelect"))$("gameModeSelect").value="local";
+  atualizarModoJogoUI();
   const meuNome=currentPlayer||"Jogador";
-  const raw=await ghGet(GH_FILE_GAME);
-  if(!raw){toast("Sala não encontrada.");return;}
-  let estado;
-  try{estado=JSON.parse(raw);}catch{toast("Erro ao ler sala.");return;}
+  let raw=await ghGet(GH_FILE_GAME);
+  let estado=null;
+  if(raw){try{estado=JSON.parse(raw);}catch{}}
+  if(!estado||estado.sala!==salaId.toUpperCase()){
+    estado=lerSalaLocal(salaId);
+    multiLocalRoom=!!estado;
+  }else{
+    multiLocalRoom=false;
+  }
+  if(!estado){toast("Sala não encontrada. Verifique o código.");return;}
   if(!estado.sala||estado.sala!==salaId.toUpperCase()){toast("Código de sala inválido.");return;}
   if(estado.status!=="aguardando"){toast("Sala já está em jogo ou encerrada.");return;}
   multiSala=salaId.toUpperCase();
@@ -591,7 +631,8 @@ async function entrarSalaMulti(salaId){
   gameState=Chess.deserialize(estado.tabuleiro);
   gameState.captured={w:[],b:[]};gameState.san=[];gameState.history.forEach(()=>{});
   multiMode=true;
-  await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Entrar sala "+salaId);
+  if(multiLocalRoom)salvarSalaLocal(estado);
+  else await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Entrar sala "+salaId);
   updateStatus(`Partida iniciada! Você é as ${multiMinhaCor==="w"?"Brancas":"Pretas"}.`);
   $("topPlayerName").textContent=multiMinhaCor==="w"?estado.pretas:estado.brancas;
   $("botPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
@@ -609,11 +650,11 @@ function pararPollingMulti(){
 
 async function pollMulti(){
   if(!multiMode||!multiSala)return;
-  const raw=await ghGet(GH_FILE_GAME);
-  if(!raw)return;
-  let estado;
-  try{estado=JSON.parse(raw);}catch{return;}
-  if(!estado.sala||estado.sala!==multiSala)return;
+  let raw=null,estado=null;
+  if(!multiLocalRoom)raw=await ghGet(GH_FILE_GAME);
+  if(raw){try{estado=JSON.parse(raw);}catch{}}
+  if(!estado&&multiLocalRoom)estado=lerSalaLocal(multiSala);
+  if(!estado||!estado.sala||estado.sala!==multiSala)return;
   // Chegou atualização nova?
   if((estado.versao||0)<=multiVersaoLocal)return;
   multiVersaoLocal=estado.versao||0;
@@ -686,28 +727,32 @@ function atualizarCastlingState(s,m){
 
 async function enviarMovimentoMulti(){
   if(!multiMode||!multiSala)return;
-  const raw=await ghGet(GH_FILE_GAME);
-  if(!raw)return;
-  let estado;
-  try{estado=JSON.parse(raw);}catch{return;}
+  let raw=null,estado=null;
+  if(!multiLocalRoom)raw=await ghGet(GH_FILE_GAME);
+  if(raw){try{estado=JSON.parse(raw);}catch{}}
+  if(!estado&&multiLocalRoom)estado=lerSalaLocal(multiSala);
+  if(!estado)return;
   estado.tabuleiro=Chess.serialize(gameState);
   estado.turno=gameState.turn;
   estado.versao=(estado.versao||0)+1;
   estado.lastMove=Date.now();
   multiVersaoLocal=estado.versao;
-  await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Movimento "+estado.brancas+" vs "+estado.pretas);
+  if(multiLocalRoom)emitirSalaLocal(estado);
+  else await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Movimento "+estado.brancas+" vs "+estado.pretas);
 }
 
 async function encerrarPartidaMulti(resultado){
   if(!multiSala)return;
-  const raw=await ghGet(GH_FILE_GAME);
-  let estado={};
+  let raw=null,estado={};
+  if(!multiLocalRoom)raw=await ghGet(GH_FILE_GAME);
   try{if(raw)estado=JSON.parse(raw);}catch{}
+  if(multiLocalRoom)estado=lerSalaLocal(multiSala)||{};
   estado.status="encerrado";
   estado.resultado=resultado;
   estado.versao=(estado.versao||0)+1;
   estado.tabuleiro=Chess.serialize(gameState);
-  await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Partida encerrada");
+  if(multiLocalRoom){emitirSalaLocal(estado);setTimeout(()=>apagarSalaLocal(multiSala),60000);}
+  else await ghPut(GH_FILE_GAME,JSON.stringify(estado),"Partida encerrada");
   pararPollingMulti();
 }
 
@@ -734,6 +779,12 @@ function registrarResultadoMulti(estado){
 // CHESS GAME
 // ============================================================
 let gameState=null;
+let gameMode="local";
+let botLevel=1;
+let botThinking=false;
+let botTimer=null;
+let multiLocalRoom=false;
+const MULTI_LOCAL_KEY="xadrez-salas-multiplayer-v1";
 let selectedSq=null;
 let legalMovesCache=[];
 let boardFlipped=false;
@@ -742,6 +793,138 @@ let pendingPromo=null;
 let saveTimeout=null;
 
 const PIECE_GLYPHS={'wK':'♔','wQ':'♕','wR':'♖','wB':'♗','wN':'♘','wP':'♙','bK':'♚','bQ':'♛','bR':'♜','bB':'♝','bN':'♞','bP':'♟'};
+
+// ============================================================
+// BOT — 10 NÍVEIS
+// ============================================================
+const BOT_LEVELS={
+  1:{depth:0,random:1.00,nodes:150},
+  2:{depth:0,random:.35,nodes:250},
+  3:{depth:1,random:.20,nodes:500},
+  4:{depth:1,random:.08,nodes:800},
+  5:{depth:2,random:.12,nodes:1800},
+  6:{depth:2,random:.04,nodes:3000},
+  7:{depth:3,random:.08,nodes:5000},
+  8:{depth:3,random:.025,nodes:8000},
+  9:{depth:4,random:.04,nodes:12000},
+  10:{depth:4,random:0,nodes:18000}
+};
+const BOT_VALUE={P:100,N:320,B:330,R:500,Q:900,K:20000};
+
+function cloneChessState(st){
+  return {
+    board:Chess.cloneBoard(st.board),
+    turn:st.turn,
+    enPassant:st.enPassant?[...st.enPassant]:null,
+    castling:{...st.castling},
+    history:st.history.map(m=>({...m})),
+    san:st.san?[...st.san]:[],
+    captured:{w:[...(st.captured?.w||[])],b:[...(st.captured?.b||[])]}
+  };
+}
+function applyBotMoveState(st,move){
+  const ns=cloneChessState(st);
+  const p=ns.board[move.fr][move.fc];
+  if(ns.board[move.tr][move.tc])ns.captured[Chess.color(p)].push(ns.board[move.tr][move.tc]);
+  atualizarCastlingState(ns,move);
+  ns.enPassant=(p==="wP"||p==="bP")&&Math.abs(move.tr-move.fr)===2
+    ?[Math.floor((move.fr+move.tr)/2),move.fc]:null;
+  ns.board=Chess.applyMove(Chess.cloneBoard(ns.board),move,ns,move.promote||"Q");
+  ns.history.push({...move,promote:move.promote||undefined});
+  ns.turn=ns.turn==="w"?"b":"w";
+  return ns;
+}
+function botAllMoves(st,col){
+  return Chess.allLegalMoves(st.board,col,st);
+}
+function botEvaluate(st,botCol){
+  const status=Chess.gameStatus(st.board,st.turn,st);
+  if(status==="checkmate")return st.turn===botCol?-999999:999999;
+  if(status==="stalemate")return 0;
+  let score=0;
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+    const p=st.board[r][c];if(!p)continue;
+    const v=BOT_VALUE[p[1]]||0;
+    score+=(Chess.color(p)===botCol?v:-v);
+    // Small positional bonus: center control and pawn advancement.
+    if(p[1]!=="K"){
+      const center=3.5-Math.max(Math.abs(3.5-r),Math.abs(3.5-c));
+      score+=(Chess.color(p)===botCol?center:-center)*2;
+    }
+  }
+  return score;
+}
+function botMoveOrder(moves,st){
+  return moves.sort((a,b)=>{
+    const ca=st.board[a.tr][a.tc], cb=st.board[b.tr][b.tc];
+    return (ca?(BOT_VALUE[ca[1]]||0):0)-(cb?(BOT_VALUE[cb[1]]||0):0);
+  }).reverse();
+}
+function botSearch(st,depth,alpha,beta,botCol,limits){
+  limits.nodes++;
+  if(limits.nodes>=limits.maxNodes)return{score:botEvaluate(st,botCol),move:null};
+  const status=Chess.gameStatus(st.board,st.turn,st);
+  if(depth<=0||status==="checkmate"||status==="stalemate")
+    return{score:botEvaluate(st,botCol),move:null};
+  let moves=botAllMoves(st,st.turn);
+  botMoveOrder(moves,st);
+  const maximizing=st.turn===botCol;
+  let bestScore=maximizing?-Infinity:Infinity,bestMove=null;
+  for(const move of moves){
+    const ns=applyBotMoveState(st,move);
+    const res=botSearch(ns,depth-1,alpha,beta,botCol,limits);
+    if(maximizing){
+      if(res.score>bestScore){bestScore=res.score;bestMove=move;}
+      alpha=Math.max(alpha,bestScore);
+    }else{
+      if(res.score<bestScore){bestScore=res.score;bestMove=move;}
+      beta=Math.min(beta,bestScore);
+    }
+    if(beta<=alpha)break;
+    if(limits.nodes>=limits.maxNodes)break;
+  }
+  return{score:bestScore,move:bestMove};
+}
+function escolherMovimentoBot(){
+  if(!gameState||gameOver||gameState.turn!=="b")return null;
+  const cfg=BOT_LEVELS[Math.max(1,Math.min(10,botLevel))]||BOT_LEVELS[1];
+  let moves=botAllMoves(gameState,"b");
+  if(!moves.length)return null;
+  botMoveOrder(moves,gameState);
+  if(cfg.depth===0){
+    const scored=moves.map(m=>{
+      const ns=applyBotMoveState(gameState,m);
+      return{m,score:botEvaluate(ns,"b")};
+    }).sort((a,b)=>b.score-a.score);
+    const pool=Math.max(1,Math.ceil(scored.length*(cfg.random||0.05)));
+    return scored[Math.floor(Math.random()*pool)].m;
+  }
+  const candidates=[];
+  for(const m of moves.slice(0,Math.min(moves.length,36))){
+    const ns=applyBotMoveState(gameState,m);
+    const limits={nodes:0,maxNodes:cfg.nodes};
+    const res=botSearch(ns,cfg.depth-1,-Infinity,Infinity,"b",limits);
+    candidates.push({m,score:res.score});
+  }
+  candidates.sort((a,b)=>b.score-a.score);
+  const jitter=cfg.random;
+  if(jitter>0&&Math.random()<jitter){
+    return candidates[Math.floor(Math.random()*Math.min(3,candidates.length))].m;
+  }
+  return candidates[0]?.m||moves[0];
+}
+function agendarJogadaBot(){
+  clearTimeout(botTimer);
+  if(gameMode!=="bot"||multiMode||gameOver||gameState?.turn!=="b")return;
+  botThinking=true;
+  updateStatus(`🤖 Bot nível ${botLevel} está pensando...`);
+  botTimer=setTimeout(()=>{
+    botThinking=false;
+    if(gameMode!=="bot"||multiMode||gameOver||!gameState||gameState.turn!=="b")return;
+    const move=escolherMovimentoBot();
+    if(move)executeMove(move,move.tr===7?"Q":"Q");
+  },Math.max(300,Math.min(1800,250+botLevel*100)));
+}
 
 function initGame(){
   gameState={
@@ -753,6 +936,8 @@ function initGame(){
     san:[],
     captured:{w:[],b:[]}
   };
+  clearTimeout(botTimer);
+  botThinking=false;
   selectedSq=null;legalMovesCache=[];gameOver=false;pendingPromo=null;
   if(multiMode){pararPollingMulti();multiMode=false;multiSala=null;}
   saveGameLocal();
@@ -808,7 +993,8 @@ function findKingPos(board,col){
 }
 
 function onSqClick(r,c){
-  if(gameOver||pendingPromo)return;
+  if(gameOver||pendingPromo||botThinking)return;
+  if(gameMode==="bot"&&gameState.turn!=="w"){toast("Aguarde o Bot...");return;}
   // Em modo multi, só pode mover na própria vez
   if(multiMode&&gameState.turn!==multiMinhaCor){
     toast("Aguardando o oponente...");return;
@@ -877,6 +1063,7 @@ function executeMove(move,promote='Q'){
   }else{
     updateStatus(`Vez das ${gameState.turn==='w'?'Brancas':'Pretas'}.`);
     if(multiMode)enviarMovimentoMulti();else scheduleSave();
+    if(gameMode==="bot"&&gameState.turn==="b")agendarJogadaBot();
   }
   renderBoard();
 }
@@ -893,7 +1080,7 @@ function registrarResultadoLocal(vencedor, solitario=false){
   const topName=$("topPlayerName").textContent;
   const adv=solitario?"(solo)":topName;
   p.historico=p.historico||[];
-  p.historico.push({adversario:adv,resultado,modo:"casual",data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
+  p.historico.push({adversario:adv,resultado,modo:gameMode==="bot"?"casual":"casual",data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
   aplicarPontuacaoResultado(p,resultado,"casual");
   analisarFarm(p.name);
   persistAndSync();
@@ -1160,6 +1347,27 @@ $("tutorialNext")&&($("tutorialNext").onclick=()=>{
   if(tutorialIdx<TUTORIAL_PECAS.length-1){tutorialIdx++;renderTutorialSlide();}
 });
 
+// Seleção do modo de jogo e nível do bot
+function atualizarModoJogoUI(){
+  const modo=$("gameModeSelect")?.value||"local";
+  gameMode=modo;
+  const wrap=$("botLevelWrap");
+  if(wrap)wrap.style.display=modo==="bot"?"block":"none";
+  const btnMulti=$("btnCriarSala");
+  if(btnMulti)btnMulti.style.display=modo==="bot"?"none":"inline-flex";
+}
+$("gameModeSelect")&&($("gameModeSelect").onchange=()=>{
+  playClique();
+  gameMode=$("gameModeSelect").value;
+  botLevel=Number($("botLevelSelect")?.value||1);
+  atualizarModoJogoUI();
+  initGame();
+});
+$("botLevelSelect")&&($("botLevelSelect").onchange=()=>{
+  botLevel=Math.max(1,Math.min(10,Number($("botLevelSelect").value)||1));
+});
+atualizarModoJogoUI();
+
 // Chess controls
 $("btnNewGame").onclick=()=>{
   playClique();
@@ -1208,6 +1416,16 @@ $("backFromProfile")&&($("backFromProfile").onclick=()=>{playClique();show("home
 // ============================================================
 renderPublic();
 initGame();
+try{
+  const bc=new BroadcastChannel("xadrez-score-multiplayer");
+  bc.onmessage=e=>{
+    const st=e.data;
+    if(!st||!multiLocalRoom||!multiSala||st.sala!==multiSala)return;
+    salvarSalaLocal(st);
+    pollMulti();
+  };
+}catch{}
+
 loadConfig().then(()=>{
   normalizarTodosJogadores();
   renderTwoFAPlayers();
