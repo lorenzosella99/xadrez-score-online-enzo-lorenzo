@@ -135,14 +135,19 @@
 
     <!-- Blistx por resultado -->
     <section class="ranking-card" style="margin-top:14px">
-      <div class="section-title"><h2>💰 Pontuação por Resultado</h2></div>
-      <p class="hint">Quantos blistx cada resultado vale numa partida registrada.</p>
+      <div class="section-title"><h2>💰 Pontuação por modo</h2></div>
+      <p class="hint">Escolha o modo que receberá estes valores. A configuração fica separada para cada modo.</p>
+      <select id="blistxModo" class="admin-select" style="margin-top:10px">
+        <option value="casual">Casual</option>
+        <option value="amistosa">Amistosa</option>
+        <option value="profissional">Profissional</option>
+      </select>
       <div class="blistx-config-grid" style="margin-top:10px">
         <label>Vitória <input id="blistxVitoria" type="number" value="5" min="0" max="999" style="width:70px;margin:0 0 0 6px"></label>
         <label>Empate <input id="blistxEmpate" type="number" value="1" min="-999" max="999" style="width:70px;margin:0 0 0 6px"></label>
         <label>Derrota <input id="blistxDerrota" type="number" value="-2" min="-999" max="0" style="width:70px;margin:0 0 0 6px"></label>
       </div>
-      <button id="btnSaveBlistx" class="primary" style="margin-top:10px">Salvar pontuação</button>
+      <button id="btnSaveBlistx" class="primary" style="margin-top:10px">Salvar pontuação deste modo</button>
     </section>
 
     <!-- Regras customizáveis -->
@@ -156,12 +161,22 @@
     <!-- 2FA Config -->
     <section class="ranking-card" style="margin-top:14px">
       <div class="section-title"><h2>🔐 Autenticação de 2 Fatores</h2></div>
-      <p class="hint">Pergunta secreta para jogadores fazerem login.</p>
+      <p class="hint">Escolha exatamente qual jogador terá uma segunda etapa de login e qual tipo de senha será usado.</p>
       <div class="form-grid" style="margin-top:8px">
-        <input id="twofa-cfg-question" placeholder="Pergunta (ex: Qual o apelido do time?)" maxlength="100">
-        <input id="twofa-cfg-answer" placeholder="Resposta (minúsculas)" maxlength="60">
+        <select id="twofa-cfg-player" class="admin-select">
+          <option value="">Selecione o jogador</option>
+        </select>
+        <select id="twofa-cfg-type" class="admin-select">
+          <option value="password">Senha diferente</option>
+          <option value="question">Pergunta e resposta</option>
+        </select>
       </div>
-      <button id="btnSave2FA" class="primary" style="margin-top:8px">Salvar 2FA</button>
+      <label class="check-line"><input id="twofa-cfg-enabled" type="checkbox"> Ativar 2FA para este jogador</label>
+      <div id="twofa-question-fields" class="form-grid" style="margin-top:8px">
+        <input id="twofa-cfg-question" placeholder="Pergunta secreta" maxlength="100">
+        <input id="twofa-cfg-answer" type="password" placeholder="Senha / resposta da segunda etapa" maxlength="100">
+      </div>
+      <button id="btnSave2FA" class="primary" style="margin-top:8px">Salvar configuração do jogador</button>
     </section>
 
     <section class="ranking-card" style="margin-top:14px">
@@ -235,6 +250,13 @@
   <div class="modal-box">
     <div class="modal-title">👥 Multiplayer</div>
     <p class="hint">Crie uma sala e compartilhe o código, ou entre em uma sala existente.</p>
+    <label class="modal-label">Modo da partida
+      <select id="multiModeSelect" class="admin-select">
+        <option value="casual">Casual</option>
+        <option value="amistosa">Amistosa</option>
+        <option value="profissional">Profissional</option>
+      </select>
+    </label>
     <div class="multi-actions">
       <button id="btnCriarBrancas" class="primary" style="flex:1">Criar sala<br><small>Jogar com ⬜ Brancas</small></button>
       <button id="btnCriarPretas" class="primary" style="flex:1">Criar sala<br><small>Jogar com ⬛ Pretas</small></button>
