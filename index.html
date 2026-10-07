@@ -36,12 +36,6 @@
 <!-- Top nav -->
 <nav class="topnav">
   <span class="topnav-brand">♟️ Xadrez Score</span>
-  <div class="topnav-links">
-    <button class="topnav-btn" data-screen="home">Início</button>
-    <button class="topnav-btn" data-screen="playerLogin">♟ Jogador</button>
-    <button class="topnav-btn" data-screen="adminLogin">⚙ Admin</button>
-    <button class="topnav-btn" data-screen="gameScreen">🎮 Jogar</button>
-  </div>
 </nav>
 
 <main class="app">
@@ -57,6 +51,7 @@
     </div>
     <section class="ranking-card">
       <div class="section-title"><h2>♟️ Todos os jogadores</h2><span id="playerCount"></span></div>
+      <p class="hint" style="margin:0 0 8px">Clique em um jogador para ver o perfil</p>
       <div id="publicRanking"></div>
     </section>
   </section>
@@ -79,8 +74,20 @@
       <button id="logoutPlayer" class="secondary">Sair</button>
     </div>
     <div id="myScoreCard" class="score-highlight"></div>
-    <section class="ranking-card"><div class="section-title"><h2>🏆 Top 10</h2></div><div id="playerRanking"></div></section>
-    <section class="ranking-card"><div class="section-title"><h2>📋 Todos</h2></div><div id="allRanking"></div></section>
+
+    <!-- Layout lado a lado: ranking + histórico -->
+    <div class="player-two-col">
+      <div>
+        <section class="ranking-card"><div class="section-title"><h2>🏆 Top 10</h2></div><div id="playerRanking"></div></section>
+        <section class="ranking-card" style="margin-top:14px"><div class="section-title"><h2>📋 Todos</h2></div><div id="allRanking"></div></section>
+      </div>
+      <div>
+        <section class="ranking-card">
+          <div class="section-title"><h2>📜 Minhas partidas</h2></div>
+          <div id="playerHistorico" class="hist-list"></div>
+        </section>
+      </div>
+    </div>
   </section>
 
   <!-- LOGIN ADMIN -->
@@ -100,6 +107,14 @@
       <div><p class="eyebrow">ADMINISTRADOR</p><h1>Gerenciar ranking</h1></div>
       <button id="logoutAdmin" class="secondary">Sair</button>
     </div>
+
+    <!-- Alertas anti-farm -->
+    <section class="ranking-card" style="margin-top:18px">
+      <div class="section-title"><h2>🤖 Alertas Anti-Farm</h2></div>
+      <div id="adminAlertas"></div>
+    </section>
+
+    <!-- Formulário jogador -->
     <section class="admin-form ranking-card">
       <h2 id="formTitle">Adicionar jogador</h2>
       <div class="form-grid">
@@ -112,9 +127,39 @@
       </div>
       <p class="hint">Toda alteração exige a senha do administrador.</p>
     </section>
-    <section class="ranking-card">
+
+    <!-- 2FA Config -->
+    <section class="ranking-card" style="margin-top:14px">
+      <div class="section-title"><h2>🔐 Autenticação de 2 Fatores</h2></div>
+      <p class="hint">Pergunta secreta para jogadores fazerem login.</p>
+      <div class="form-grid" style="margin-top:8px">
+        <input id="twofa-cfg-question" placeholder="Pergunta (ex: Qual o apelido do time?)" maxlength="100">
+        <input id="twofa-cfg-answer" placeholder="Resposta (minúsculas)" maxlength="60">
+      </div>
+      <button id="btnSave2FA" class="primary" style="margin-top:8px">Salvar 2FA</button>
+    </section>
+
+    <section class="ranking-card" style="margin-top:14px">
       <div class="section-title"><h2>👥 Jogadores</h2><span id="adminCount"></span></div>
       <div id="adminRanking"></div>
+    </section>
+  </section>
+
+  <!-- PERFIL PÚBLICO -->
+  <section id="profileScreen" class="screen">
+    <div class="section-title">
+      <div><p class="eyebrow">PERFIL</p><h1 id="profileName"></h1></div>
+      <button id="backFromProfile" class="secondary">← Voltar</button>
+    </div>
+    <div class="profile-card ranking-card">
+      <div class="profile-rank" id="profileRank"></div>
+      <div class="profile-score"><span id="profileScore"></span></div>
+      <div id="profileFarm" class="farm-warning" style="display:none">⚠️ Jogador sob investigação por suspeita de farm</div>
+      <div id="profileStats" class="profile-stats"></div>
+    </div>
+    <section class="ranking-card" style="margin-top:14px">
+      <div class="section-title"><h2>📜 Histórico de partidas</h2></div>
+      <div id="profileHistorico" class="hist-list"></div>
     </section>
   </section>
 
@@ -126,8 +171,10 @@
         <button id="btnNewGame" class="primary game-btn">Nova partida</button>
         <button id="btnUndoMove" class="secondary game-btn">↩ Desfazer</button>
         <button id="btnFlipBoard" class="secondary game-btn">🔄 Girar</button>
+        <button id="btnCriarSala" class="secondary game-btn">👥 Multiplayer</button>
       </div>
     </div>
+    <div id="multiRoomCode" class="multi-room-code" style="display:none"></div>
     <div class="game-layout">
       <div class="game-left">
         <div class="player-tag" id="topPlayerTag"><span class="p-color black-dot"></span><span id="topPlayerName">Pretas</span><span id="topTimer" class="timer">10:00</span></div>
@@ -152,6 +199,37 @@
   </section>
 
 </main>
+
+<!-- MODAL MULTIPLAYER -->
+<div id="multiModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">👥 Multiplayer</div>
+    <p class="hint">Crie uma sala e compartilhe o código, ou entre em uma sala existente.</p>
+    <div class="multi-actions">
+      <button id="btnCriarBrancas" class="primary" style="flex:1">Criar sala<br><small>Jogar com ⬜ Brancas</small></button>
+      <button id="btnCriarPretas" class="primary" style="flex:1">Criar sala<br><small>Jogar com ⬛ Pretas</small></button>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center">
+      <input id="entrarSalaInput" placeholder="Código da sala (ex: ABC123)" maxlength="6" style="margin:0;flex:1">
+      <button id="btnEntrarSala" class="secondary" style="white-space:nowrap">Entrar</button>
+    </div>
+    <button id="btnCloseMultiModal" class="secondary" style="width:100%;margin-top:10px">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL 2FA -->
+<div id="twoFAModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">🔐 Verificação</div>
+    <p id="twofa-question" class="hint" style="font-size:15px;color:var(--text)"></p>
+    <input id="twofa-answer" placeholder="Sua resposta" maxlength="60">
+    <p id="twofa-error" class="error"></p>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button id="twoFAConfirm" class="primary" style="flex:1">Confirmar</button>
+      <button id="twoFACancel" class="secondary">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <nav class="bottom-bar">
   <button class="bottom-btn active" data-screen="home"><span class="bb-icon">🏠</span>Início</button>

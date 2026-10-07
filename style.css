@@ -299,3 +299,73 @@ input:focus{border-color:var(--accent)}
   display:none;align-items:center;justify-content:center;
 }
 #promoOverlay.open{display:flex}
+
+/* ===== RANK BADGE ===== */
+.rank-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;
+  background:rgba(92,45,10,.18);border:1px solid rgba(160,112,58,.4);
+  color:var(--muted);vertical-align:middle;white-space:nowrap;
+}
+.rank-inline{font-size:14px;vertical-align:middle}
+.rank-display{font-size:18px;font-weight:700;color:var(--accent);margin:6px 0}
+
+/* ===== HISTÓRICO ===== */
+.hist-list{display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.hist-row{
+  display:grid;grid-template-columns:28px 1fr auto auto;
+  align-items:center;gap:8px;padding:7px 6px;border-radius:8px;font-size:13px;
+}
+.hist-win{background:rgba(80,180,80,.12);border-left:3px solid #5cb85c}
+.hist-loss{background:rgba(200,80,80,.1);border-left:3px solid #d9534f}
+.hist-draw{background:rgba(200,160,74,.1);border-left:3px solid #c8a04a}
+.hist-res{font-weight:900;font-size:15px;text-align:center}
+.hist-win .hist-res{color:#5cb85c}
+.hist-loss .hist-res{color:#d9534f}
+.hist-draw .hist-res{color:#c8a04a}
+.hist-adv{color:var(--text)}
+.hist-date{color:var(--muted);font-size:11px}
+.hist-moves{color:var(--muted);font-size:11px;text-align:right}
+
+/* ===== PLAYER TWO COL ===== */
+.player-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+@media(max-width:700px){.player-two-col{grid-template-columns:1fr}}
+
+/* ===== PERFIL ===== */
+.profile-card{padding:22px;display:flex;flex-direction:column;gap:6px}
+.profile-rank{font-size:22px;font-weight:800;color:var(--accent)}
+.profile-score{font-size:38px;font-weight:900;color:var(--text)}
+.farm-warning{background:rgba(200,80,80,.15);border:1px solid #d9534f;border-radius:8px;padding:8px 12px;font-size:13px;color:#ff9aa4}
+.profile-stats{display:flex;gap:14px;font-size:16px;font-weight:800;margin-top:4px}
+.stat-win{color:#5cb85c}.stat-draw{color:#c8a04a}.stat-loss{color:#d9534f}
+
+/* ===== ALERTAS ANTI-FARM ===== */
+.alerta-row{
+  display:grid;grid-template-columns:28px 1fr auto;
+  gap:10px;align-items:center;padding:10px 6px;border-radius:8px;
+  background:rgba(200,80,80,.08);border-left:3px solid #d9534f;margin-bottom:6px;font-size:13px;
+}
+.alerta-icon{font-size:18px;text-align:center}
+.farm-alert{font-size:14px;margin-left:4px;vertical-align:middle}
+
+/* ===== MODAIS ===== */
+.modal-overlay{
+  position:fixed;inset:0;z-index:700;background:#0009;
+  display:none;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal-box{
+  background:#271508;border:2px solid var(--accent);border-radius:16px;
+  padding:24px;width:100%;max-width:420px;
+}
+.modal-title{font-size:18px;font-weight:800;color:var(--accent);margin-bottom:12px}
+.multi-actions{display:flex;gap:10px;margin-top:10px}
+.multi-actions .primary small{display:block;font-size:11px;margin-top:2px;font-weight:600;opacity:.8}
+
+/* ===== MULTIPLAYER ROOM CODE ===== */
+.multi-room-code{
+  text-align:center;padding:10px 16px;margin-bottom:12px;
+  background:rgba(92,45,10,.2);border:1px solid var(--accent);border-radius:10px;
+  font-size:18px;font-weight:800;color:var(--accent);letter-spacing:.12em;
+}
