@@ -804,10 +804,10 @@ const BOT_LEVELS={
   4:{depth:1,random:.08,nodes:800},
   5:{depth:2,random:.12,nodes:1800},
   6:{depth:2,random:.04,nodes:3000},
-  7:{depth:3,random:.08,nodes:5000},
-  8:{depth:3,random:.025,nodes:8000},
-  9:{depth:4,random:.04,nodes:12000},
-  10:{depth:4,random:0,nodes:18000}
+  7:{depth:3,random:.08,nodes:2500},
+  8:{depth:3,random:.025,nodes:3500},
+  9:{depth:4,random:.04,nodes:4500},
+  10:{depth:4,random:0,nodes:6000}
 };
 const BOT_VALUE={P:100,N:320,B:330,R:500,Q:900,K:20000};
 
