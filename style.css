@@ -349,19 +349,90 @@ input:focus{border-color:var(--accent)}
 .alerta-icon{font-size:18px;text-align:center}
 .farm-alert{font-size:14px;margin-left:4px;vertical-align:middle}
 
+/* ===== HOME UTILS ===== */
+.home-utils{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px}
+.util-btn{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:8px 16px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;transition:.15s;
+}
+.util-btn:hover{border-color:var(--accent);color:var(--accent)}
+.blistx-info-home{display:flex;gap:10px;font-size:13px;font-weight:700;flex-wrap:wrap}
+.blistx-win{color:#5cb85c}.blistx-draw{color:#c8a04a}.blistx-loss{color:#d9534f}
+
+/* ===== BLISTX GAME BAR ===== */
+.blistx-game-bar{
+  display:flex;align-items:center;gap:12px;padding:8px 14px;margin-bottom:10px;
+  background:rgba(92,45,10,.15);border:1px solid rgba(160,112,58,.3);border-radius:10px;
+  flex-wrap:wrap;
+}
+.blistx-info-game{display:flex;gap:12px;font-size:13px;font-weight:800}
+
+/* ===== ADMIN EXTRAS ===== */
+textarea{
+  width:100%;padding:10px 14px;background:#110a03;color:var(--text);
+  border:1px solid var(--border);border-radius:10px;outline:none;margin:8px 0;
+  font-size:14px;font-family:inherit;resize:vertical;min-height:120px;
+}
+textarea:focus{border-color:var(--accent)}
+.blistx-config-grid{display:flex;gap:16px;flex-wrap:wrap;font-weight:700;font-size:14px}
+.blistx-config-grid label{display:flex;align-items:center;gap:4px}
+.hist-btn{background:rgba(200,160,74,.1)!important;border-color:var(--border)!important;font-size:15px!important;padding:4px 8px!important}
+
 /* ===== MODAIS ===== */
 .modal-overlay{
   position:fixed;inset:0;z-index:700;background:#0009;
   display:none;align-items:center;justify-content:center;padding:20px;
+  overflow-y:auto;
 }
 .modal-overlay.open{display:flex}
 .modal-box{
   background:#271508;border:2px solid var(--accent);border-radius:16px;
   padding:24px;width:100%;max-width:420px;
 }
+.modal-large{max-width:600px}
 .modal-title{font-size:18px;font-weight:800;color:var(--accent);margin-bottom:12px}
 .multi-actions{display:flex;gap:10px;margin-top:10px}
 .multi-actions .primary small{display:block;font-size:11px;margin-top:2px;font-weight:600;opacity:.8}
+
+/* ===== REGRAS ===== */
+.regras-conteudo{
+  background:rgba(0,0,0,.2);border-radius:10px;padding:14px;
+  font-size:14px;line-height:1.7;color:var(--text);max-height:60vh;overflow-y:auto;
+  white-space:pre-wrap;
+}
+
+/* ===== TUTORIAL ===== */
+.tut-peca-selector{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tut-peca-btn{
+  width:44px;height:44px;font-size:22px;border-radius:10px;cursor:pointer;
+  border:2px solid transparent;background:rgba(200,160,74,.08);transition:.15s;
+}
+.tut-peca-btn.active{border-color:var(--accent);background:rgba(200,160,74,.2)}
+.tut-peca-btn:hover{border-color:rgba(200,160,74,.5)}
+.tut-body{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+@media(max-width:500px){.tut-body{grid-template-columns:1fr}}
+.tut-board{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  border:2px solid var(--accent);border-radius:6px;overflow:hidden;
+  width:min(210px,calc(50vw - 20px));aspect-ratio:1;flex-shrink:0;
+}
+.tut-sq{aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative}
+.tut-sq.light{background:var(--sq-light)}.tut-sq.dark{background:var(--sq-dark)}
+.tut-sq.tut-move{background:#aed66188}
+.tut-sq.tut-capture{background:#e74c3c55}
+.tut-piece{font-size:clamp(18px,4vw,28px);line-height:1;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.tut-dot{
+  width:38%;height:38%;background:rgba(0,0,0,.28);border-radius:50%;
+  display:block;margin:auto;
+}
+.tut-dot-cap{font-size:12px;font-weight:900;color:rgba(200,60,60,.9);line-height:1}
+.tut-peca-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tut-glifo{font-size:36px;line-height:1}
+.tut-nome{font-size:20px;font-weight:800;color:var(--accent)}
+.tut-desc{font-size:14px;line-height:1.6;color:var(--text);margin:0 0 8px}
+.tut-extra{font-size:12px;color:var(--muted);font-style:italic;margin:0;border-left:2px solid var(--border);padding-left:8px}
+.tut-nav{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
+.tut-counter{font-weight:700;font-size:13px;color:var(--muted)}
 
 /* ===== MULTIPLAYER ROOM CODE ===== */
 .multi-room-code{

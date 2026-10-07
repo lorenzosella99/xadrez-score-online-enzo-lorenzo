@@ -12,6 +12,114 @@ const GH_FILE_CONFIG = "config.json";
 const GH_TOKEN = ["ghp_Q5q3jXpljH","PEu5zIGmDDSK","ibbFLrFA3et1OF"].join("");
 
 // ============================================================
+// REGRAS PADRÃO & TUTORIAL
+// ============================================================
+const DEFAULT_REGRAS = `📋 REGRAS DO XADREZ SCORE
+
+1. Cada partida vale blistx conforme configurado pelo admin.
+2. Só é válida a partida registrada pelo sistema.
+3. Farmar (jogar repetidamente contra o mesmo jogador para ganhar pontos) é proibido e monitorado automaticamente.
+4. Em caso de abandono de partida, o adversário vence automaticamente.
+5. Respeite o oponente. Condutas antidesportivas podem levar à desclassificação.
+6. O admin pode editar pontuações a qualquer momento.
+7. Dúvidas? Fale com o administrador.`;
+
+const TUTORIAL_PECAS = [
+  {
+    nome:"Rei", glifo:"♔",
+    desc:"O Rei é a peça mais importante. Se ele for capturado, o jogo acaba! O Rei pode se mover <strong>1 casa em qualquer direção</strong>: horizontal, vertical ou diagonal.",
+    movimentos:[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]],
+    extra:"Xeque-mate: quando o Rei está ameaçado e não há escape."
+  },
+  {
+    nome:"Rainha", glifo:"♕",
+    desc:"A Rainha é a peça mais poderosa. Ela se move <strong>qualquer número de casas</strong> em linha reta ou diagonal — combina o movimento da Torre e do Bispo!",
+    movimentos:[[1,0],[2,0],[3,0],[-1,0],[-2,0],[0,1],[0,2],[0,3],[0,-1],[0,-2],[1,1],[2,2],[-1,-1],[-2,-2],[1,-1],[2,-2],[-1,1],[-2,2]],
+    extra:"Com a Rainha no centro, você controla até 27 casas!"
+  },
+  {
+    nome:"Torre", glifo:"♖",
+    desc:"A Torre se move <strong>qualquer número de casas</strong> na horizontal ou vertical. É muito poderosa no final do jogo quando o tabuleiro está mais aberto.",
+    movimentos:[[1,0],[2,0],[3,0],[-1,0],[-2,0],[-3,0],[0,1],[0,2],[0,3],[0,-1],[0,-2],[0,-3]],
+    extra:"Roque: o Rei e a Torre podem fazer um movimento especial de troca de posição."
+  },
+  {
+    nome:"Bispo", glifo:"♗",
+    desc:"O Bispo se move <strong>qualquer número de casas na diagonal</strong>. Cada Bispo fica sempre nas casas da mesma cor durante toda a partida.",
+    movimentos:[[1,1],[2,2],[3,3],[-1,-1],[-2,-2],[-3,-3],[1,-1],[2,-2],[3,-3],[-1,1],[-2,2],[-3,3]],
+    extra:"Ter os dois Bispos no final do jogo é uma grande vantagem!"
+  },
+  {
+    nome:"Cavalo", glifo:"♘",
+    desc:"O Cavalo se move em <strong>formato de L</strong>: 2 casas em uma direção e 1 na perpendicular. É a única peça que pode <strong>pular por cima</strong> de outras peças!",
+    movimentos:[[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]],
+    extra:"O Cavalo é especialista em atacar peças que não conseguem atacá-lo de volta."
+  },
+  {
+    nome:"Peão", glifo:"♙",
+    desc:"O Peão anda <strong>1 casa para frente</strong> (ou 2 na primeira jogada). Ele captura na diagonal. Se chegar ao outro lado do tabuleiro, vira qualquer peça que quiser!",
+    movimentos:[[-1,0],[-2,0]],
+    capturas:[[-1,-1],[-1,1]],
+    extra:"En passant: captura especial quando um peão avança 2 casas e fica ao lado do seu."
+  }
+];
+
+let tutorialIdx=0;
+function abrirTutorial(idx){tutorialIdx=idx;renderTutorialSlide();}
+
+function renderTutorialSlide(){
+  const p=TUTORIAL_PECAS[tutorialIdx];
+  if(!p)return;
+  // Atualiza info
+  $("tutorialPecaNome").textContent=p.nome;
+  $("tutorialPecaGlifo").textContent=p.glifo;
+  $("tutorialPecaDesc").innerHTML=p.desc;
+  $("tutorialPecaExtra").textContent=p.extra||"";
+  $("tutorialCounter").textContent=`${tutorialIdx+1} / ${TUTORIAL_PECAS.length}`;
+  $("tutorialPrev").disabled=tutorialIdx===0;
+  $("tutorialNext").disabled=tutorialIdx===TUTORIAL_PECAS.length-1;
+  // Mini tabuleiro 7x7 com a peça no centro (pos 3,3)
+  renderTutorialBoard(p);
+  // Botões de seleção de peça
+  document.querySelectorAll(".tut-peca-btn").forEach((b,i)=>{
+    b.classList.toggle("active",i===tutorialIdx);
+  });
+}
+
+function renderTutorialBoard(p){
+  const el=$("tutorialBoard");if(!el)return;
+  el.innerHTML="";
+  const CENTER=3;
+  for(let r=0;r<7;r++){
+    for(let c=0;c<7;c++){
+      const sq=document.createElement("div");
+      sq.className="tut-sq "+((r+c)%2===0?"light":"dark");
+      const dr=r-CENTER, dc=c-CENTER;
+      const isCenter=dr===0&&dc===0;
+      const isMove=p.movimentos&&p.movimentos.some(([mr,mc])=>mr===dr&&mc===dc);
+      const isCapt=p.capturas&&p.capturas.some(([mr,mc])=>mr===dr&&mc===dc);
+      if(isCenter){
+        const sp=document.createElement("span");sp.className="tut-piece";sp.textContent=p.glifo;sq.appendChild(sp);
+      } else if(isMove){
+        sq.classList.add("tut-move");
+        const dot=document.createElement("span");dot.className="tut-dot";sq.appendChild(dot);
+      } else if(isCapt){
+        sq.classList.add("tut-capture");
+        const dot=document.createElement("span");dot.className="tut-dot-cap";dot.textContent="✕";sq.appendChild(dot);
+      }
+      el.appendChild(sq);
+    }
+  }
+}
+
+function atualizarBlistxInfo(){
+  const b=appConfig.blistx||{vitoria:5,derrota:-2,empate:1};
+  const html=`<span class="blistx-win">+${b.vitoria} vitória</span> <span class="blistx-draw">+${b.empate} empate</span> <span class="blistx-loss">${b.derrota} derrota</span>`;
+  const home=$("blistxInfoHome"); if(home) home.innerHTML=html;
+  const game=$("blistxInfoGame"); if(game) game.innerHTML=html;
+}
+
+// ============================================================
 // CLASSIFICAÇÕES
 // ============================================================
 const RANKS = [
@@ -84,13 +192,20 @@ async function ghPut(file,content,message){
 // ============================================================
 // CONFIG (2FA e outros)
 // ============================================================
-let appConfig = {twoFA:{question:"",answer:""},antifarm:{alertas:[]}};
+let appConfig = {
+  twoFA:{question:"",answer:""},
+  antifarm:{alertas:[]},
+  regras:"",
+  blistx:{vitoria:5, derrota:-2, empate:1}
+};
 
 async function loadConfig(){
   const raw=await ghGet(GH_FILE_CONFIG);
   if(raw){try{appConfig=JSON.parse(raw);}catch{}}
   appConfig.twoFA=appConfig.twoFA||{question:"",answer:""};
   appConfig.antifarm=appConfig.antifarm||{alertas:[]};
+  appConfig.regras=appConfig.regras||"";
+  appConfig.blistx=appConfig.blistx||{vitoria:5,derrota:-2,empate:1};
 }
 async function saveConfig(){
   await ghPut(GH_FILE_CONFIG,JSON.stringify(appConfig,null,2),"Atualizar config");
@@ -139,7 +254,7 @@ function rows(list,admin=false){
       return`<div class="admin-row"><span class="position">${i+1}</span>
         <span class="name">${esc(p.name)}${farmIcon} <span class="rank-inline">${r.emoji}</span></span>
         <strong class="points">${Number(p.score)} blistx</strong>
-        <div><button class="mini" onclick="editPlayer(${i})">Editar</button> <button class="mini danger" onclick="deletePlayer(${i})">Excluir</button></div></div>`;
+        <div><button class="mini hist-btn" onclick="verHistoricoAdmin(${i})" title="Ver histórico">📜</button> <button class="mini" onclick="editPlayer(${i})">Editar</button> <button class="mini danger" onclick="deletePlayer(${i})">Excluir</button></div></div>`;
     }
     return`<div class="ranking-row ${i<3?"top":""}" onclick="showPlayerProfileById('${esc(p.name)}')" style="cursor:pointer">
       <span class="position">${i<3?["🥇","🥈","🥉"][i]:i+1}</span>
@@ -866,6 +981,13 @@ window.editPlayer=i=>{
   $("cancelEdit").classList.remove("hidden");scrollTo({top:0,behavior:"smooth"});
 };
 
+// Ver histórico no admin
+window.verHistoricoAdmin=i=>{
+  playClique();
+  const p=sorted()[i];
+  showPlayerProfileById(p.name);
+};
+
 window.deletePlayer=async i=>{
   const p=sorted()[i],password=prompt("Senha do administrador para excluir "+p.name+":");
   if(password===null)return;
@@ -889,6 +1011,54 @@ $("btnSave2FA")&&($("btnSave2FA").onclick=async()=>{
   appConfig.twoFA={question:q,answer:a.toLowerCase()};
   await saveConfig();
   toast("2FA configurado ✓");
+});
+
+// Configurar Regras (admin)
+$("btnSaveRegras")&&($("btnSaveRegras").onclick=async()=>{
+  const txt=$("adminRegrasText").value.trim();
+  const password=prompt("Senha do administrador:");
+  if(password===null)return;
+  if(await sha256(password)!==ADMIN_HASH){toast("Senha incorreta.");return;}
+  appConfig.regras=txt;
+  await saveConfig();
+  toast("Regras salvas ✓");
+});
+
+// Configurar blistx por resultado
+$("btnSaveBlistx")&&($("btnSaveBlistx").onclick=async()=>{
+  const v=parseInt($("blistxVitoria").value)||5;
+  const d=parseInt($("blistxDerrota").value)||-2;
+  const e=parseInt($("blistxEmpate").value)||1;
+  const password=prompt("Senha do administrador:");
+  if(password===null)return;
+  if(await sha256(password)!==ADMIN_HASH){toast("Senha incorreta.");return;}
+  appConfig.blistx={vitoria:v,derrota:d,empate:e};
+  await saveConfig();
+  atualizarBlistxInfo();
+  toast("Pontuação salva ✓");
+});
+
+// Modal Regras
+$("btnAbrirRegras")&&($("btnAbrirRegras").onclick=()=>{
+  playClique();
+  const txt=appConfig.regras||(DEFAULT_REGRAS);
+  $("regrasConteudo").innerHTML=txt.replace(/\n/g,"<br>");
+  $("regrasModal").classList.add("open");
+});
+$("btnFecharRegras")&&($("btnFecharRegras").onclick=()=>{$("regrasModal").classList.remove("open");});
+
+// Modal Tutorial
+$("btnAbrirTutorial")&&($("btnAbrirTutorial").onclick=()=>{
+  playClique();
+  abrirTutorial(0);
+  $("tutorialModal").classList.add("open");
+});
+$("btnFecharTutorial")&&($("btnFecharTutorial").onclick=()=>{$("tutorialModal").classList.remove("open");});
+$("tutorialPrev")&&($("tutorialPrev").onclick=()=>{
+  if(tutorialIdx>0){tutorialIdx--;renderTutorialSlide();}
+});
+$("tutorialNext")&&($("tutorialNext").onclick=()=>{
+  if(tutorialIdx<TUTORIAL_PECAS.length-1){tutorialIdx++;renderTutorialSlide();}
 });
 
 // Chess controls
@@ -940,10 +1110,18 @@ $("backFromProfile")&&($("backFromProfile").onclick=()=>{playClique();show("home
 renderPublic();
 initGame();
 loadConfig().then(()=>{
-  // preencher campos 2FA se existir
   if($("twofa-cfg-question")&&appConfig.twoFA){
     $("twofa-cfg-question").value=appConfig.twoFA.question||"";
   }
+  if($("adminRegrasText"))$("adminRegrasText").value=appConfig.regras||"";
+  if($("blistxVitoria"))$("blistxVitoria").value=appConfig.blistx?.vitoria??5;
+  if($("blistxDerrota"))$("blistxDerrota").value=appConfig.blistx?.derrota??-2;
+  if($("blistxEmpate"))$("blistxEmpate").value=appConfig.blistx?.empate??1;
+  atualizarBlistxInfo();
+});
+// Tutorial: inicializar botões de peça
+document.querySelectorAll(".tut-peca-btn").forEach((b,i)=>{
+  b.onclick=()=>{tutorialIdx=i;renderTutorialSlide();};
 });
 
 // Load ranking from GitHub

@@ -49,6 +49,11 @@
       <button class="cta-card" data-screen="adminLogin"><span>⚙</span><strong>Sou admin</strong><small>Gerenciar scores</small></button>
       <button class="cta-card highlight" data-screen="gameScreen"><span>🎮</span><strong>Jogar Xadrez</strong><small>Partida online</small></button>
     </div>
+    <div class="home-utils">
+      <button class="util-btn" id="btnAbrirRegras">📋 Regras</button>
+      <button class="util-btn" id="btnAbrirTutorial">📖 Como jogar</button>
+      <div id="blistxInfoHome" class="blistx-info-home"></div>
+    </div>
     <section class="ranking-card">
       <div class="section-title"><h2>♟️ Todos os jogadores</h2><span id="playerCount"></span></div>
       <p class="hint" style="margin:0 0 8px">Clique em um jogador para ver o perfil</p>
@@ -128,6 +133,26 @@
       <p class="hint">Toda alteração exige a senha do administrador.</p>
     </section>
 
+    <!-- Blistx por resultado -->
+    <section class="ranking-card" style="margin-top:14px">
+      <div class="section-title"><h2>💰 Pontuação por Resultado</h2></div>
+      <p class="hint">Quantos blistx cada resultado vale numa partida registrada.</p>
+      <div class="blistx-config-grid" style="margin-top:10px">
+        <label>Vitória <input id="blistxVitoria" type="number" value="5" min="0" max="999" style="width:70px;margin:0 0 0 6px"></label>
+        <label>Empate <input id="blistxEmpate" type="number" value="1" min="-999" max="999" style="width:70px;margin:0 0 0 6px"></label>
+        <label>Derrota <input id="blistxDerrota" type="number" value="-2" min="-999" max="0" style="width:70px;margin:0 0 0 6px"></label>
+      </div>
+      <button id="btnSaveBlistx" class="primary" style="margin-top:10px">Salvar pontuação</button>
+    </section>
+
+    <!-- Regras customizáveis -->
+    <section class="ranking-card" style="margin-top:14px">
+      <div class="section-title"><h2>📋 Regras do Torneio</h2></div>
+      <p class="hint">Texto livre exibido no botão "Regras" na tela inicial.</p>
+      <textarea id="adminRegrasText" rows="8" placeholder="Digite as regras aqui..."></textarea>
+      <button id="btnSaveRegras" class="primary" style="margin-top:8px">Salvar regras</button>
+    </section>
+
     <!-- 2FA Config -->
     <section class="ranking-card" style="margin-top:14px">
       <div class="section-title"><h2>🔐 Autenticação de 2 Fatores</h2></div>
@@ -175,6 +200,11 @@
       </div>
     </div>
     <div id="multiRoomCode" class="multi-room-code" style="display:none"></div>
+    <!-- Blistx em jogo -->
+    <div class="blistx-game-bar" id="blistxGameBar">
+      <span id="blistxInfoGame" class="blistx-info-game"></span>
+      <span class="hint" style="font-size:11px">por partida registrada</span>
+    </div>
     <div class="game-layout">
       <div class="game-left">
         <div class="player-tag" id="topPlayerTag"><span class="p-color black-dot"></span><span id="topPlayerName">Pretas</span><span id="topTimer" class="timer">10:00</span></div>
@@ -214,6 +244,53 @@
       <button id="btnEntrarSala" class="secondary" style="white-space:nowrap">Entrar</button>
     </div>
     <button id="btnCloseMultiModal" class="secondary" style="width:100%;margin-top:10px">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL REGRAS -->
+<div id="regrasModal" class="modal-overlay">
+  <div class="modal-box modal-large">
+    <div class="modal-title">📋 Regras</div>
+    <div id="regrasConteudo" class="regras-conteudo"></div>
+    <button id="btnFecharRegras" class="primary" style="margin-top:16px;width:100%">Fechar</button>
+  </div>
+</div>
+
+<!-- MODAL TUTORIAL -->
+<div id="tutorialModal" class="modal-overlay">
+  <div class="modal-box modal-large">
+    <div class="modal-title">📖 Como as peças se movem</div>
+    <!-- Seletor de peças -->
+    <div class="tut-peca-selector">
+      <button class="tut-peca-btn active" data-idx="0">♔</button>
+      <button class="tut-peca-btn" data-idx="1">♕</button>
+      <button class="tut-peca-btn" data-idx="2">♖</button>
+      <button class="tut-peca-btn" data-idx="3">♗</button>
+      <button class="tut-peca-btn" data-idx="4">♘</button>
+      <button class="tut-peca-btn" data-idx="5">♙</button>
+    </div>
+    <div class="tut-body">
+      <!-- Tabuleiro mini -->
+      <div id="tutorialBoard" class="tut-board"></div>
+      <!-- Texto -->
+      <div class="tut-info">
+        <div class="tut-peca-header">
+          <span id="tutorialPecaGlifo" class="tut-glifo">♔</span>
+          <span id="tutorialPecaNome" class="tut-nome">Rei</span>
+        </div>
+        <p id="tutorialPecaDesc" class="tut-desc"></p>
+        <p id="tutorialPecaExtra" class="tut-extra"></p>
+      </div>
+    </div>
+    <!-- Navegação -->
+    <div class="tut-nav">
+      <button id="tutorialPrev" class="secondary">← Anterior</button>
+      <span id="tutorialCounter" class="tut-counter">1 / 6</span>
+      <button id="tutorialNext" class="secondary">Próxima →</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="btnFecharTutorial" class="primary" style="flex:1">Fechar</button>
+    </div>
   </div>
 </div>
 
