@@ -776,8 +776,35 @@ async function encerrarPartidaMulti(resultado){
   pararPollingMulti();
 }
 
+function registrarPartidaPendenteMulti(estado){
+  if(!currentPlayer||!estado)return;
+  const meuNome=currentPlayer;
+  const p=players.find(x=>x.name.toLowerCase()===meuNome.toLowerCase());
+  if(!p)return;
+  p.historico=p.historico||[];
+  const id=estado.sala||multiSala;
+  const existente=p.historico.find(h=>h.partidaId===id);
+  const sou=p.name===estado.brancas?"w":"b";
+  const adv=sou==="w"?estado.pretas:estado.brancas;
+  const entrada={
+    partidaId:id,
+    adversario:adv&&adv!=="..."?adv:"Aguardando oponente",
+    resultado:"em andamento",
+    modo:estado.tipoJogo||"casual",
+    data:new Date().toLocaleDateString("pt-BR"),
+    movimentos:0
+  };
+  if(existente){
+    Object.assign(existente,entrada);
+  }else{
+    p.historico.push(entrada);
+  }
+  persist();
+  renderPlayer();
+}
+
 function registrarResultadoMulti(estado){
-  if(!currentPlayer)return;
+  if(!currentPlayer||!estado)return;
   const meuNome=currentPlayer;
   const p=players.find(x=>x.name.toLowerCase()===meuNome.toLowerCase());
   if(!p)return;
@@ -789,7 +816,26 @@ function registrarResultadoMulti(estado){
   else resultado="derrota";
   const adv=sou==="w"?estado.pretas:estado.brancas;
   p.historico=p.historico||[];
-  p.historico.push({adversario:adv,resultado,modo:estado.tipoJogo||"casual",data:new Date().toLocaleDateString("pt-BR"),movimentos:gameState.history.length});
+
+  // Atualiza a partida "em andamento" em vez de criar uma segunda entrada.
+  const id=estado.sala||multiSala;
+  const existente=p.historico.find(h=>h.partidaId===id);
+  const movimentos=Array.isArray(gameState?.history)?gameState.history.length:0;
+  if(existente){
+    existente.adversario=adv||existente.adversario||"Desconhecido";
+    existente.resultado=resultado;
+    existente.modo=estado.tipoJogo||existente.modo||"casual";
+    existente.movimentos=movimentos;
+  }else{
+    p.historico.push({
+      partidaId:id,
+      adversario:adv||"Desconhecido",
+      resultado,
+      modo:estado.tipoJogo||"casual",
+      data:new Date().toLocaleDateString("pt-BR"),
+      movimentos
+    });
+  }
   aplicarPontuacaoResultado(p,resultado,estado.tipoJogo||"casual");
   analisarFarm(p.name);
   persistAndSync();
