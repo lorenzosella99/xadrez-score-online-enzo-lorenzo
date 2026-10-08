@@ -811,6 +811,7 @@ let boardFlipped=false;
 let gameOver=false;
 let pendingPromo=null;
 let saveTimeout=null;
+let _lastBoardTouch=0; // evita duplo disparo touchend+click no mobile
 
 const PIECE_GLYPHS={'wK':'♔','wQ':'♕','wR':'♖','wB':'♗','wN':'♘','wP':'♙','bK':'♚','bQ':'♛','bR':'♜','bB':'♝','bN':'♞','bP':'♟'};
 
@@ -997,16 +998,14 @@ function renderBoard(){
       }
       const p=gameState.board[r][c];
       if(p){const span=document.createElement("span");span.className="piece";span.textContent=PIECE_GLYPHS[p];sq.appendChild(span);}
-      // No mobile, touchend + click sintético causam dupla chamada.
-      // Usamos apenas touchend em dispositivos touch; click para mouse.
-      let lastTouch=0;
       sq.addEventListener("touchend",e=>{
         e.preventDefault();
-        lastTouch=Date.now();
+        e.stopPropagation();
+        _lastBoardTouch=Date.now();
         onSqClick(r,c);
       },{passive:false});
-      sq.addEventListener("click",()=>{
-        if(Date.now()-lastTouch<600)return; // ignora click sintético após touch
+      sq.addEventListener("click",e=>{
+        if(Date.now()-_lastBoardTouch<800)return;
         onSqClick(r,c);
       });
       board.appendChild(sq);
