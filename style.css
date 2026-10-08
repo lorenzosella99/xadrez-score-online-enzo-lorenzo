@@ -610,3 +610,24 @@ select:disabled{
   .game-actions-row .primary,
   .game-actions-row .secondary{flex:1 1 calc(50% - 6px);text-align:center;}
 }
+
+
+/* ===== TEXTO DOS BOTÕES DO MULTIPLAYER ===== */
+.multi-actions .primary,
+.multi-actions .primary small,
+.btn-entrar-sala,
+.btn-cancelar-modal{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+  text-shadow:none;
+}
+.multi-actions .primary:hover,
+.btn-entrar-sala:hover,
+.btn-cancelar-modal:hover{
+  color:#fff !important;
+  -webkit-text-fill-color:#fff !important;
+}
+.sq{
+  touch-action:none;
+  -webkit-tap-highlight-color:transparent;
+}
