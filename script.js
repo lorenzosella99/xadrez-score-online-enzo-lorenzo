@@ -998,13 +998,17 @@ function renderBoard(){
       }
       const p=gameState.board[r][c];
       if(p){const span=document.createElement("span");span.className="piece";span.textContent=PIECE_GLYPHS[p];sq.appendChild(span);}
-      // PointerDown é disparado imediatamente tanto no mouse quanto no toque.
-      // Isso evita que o navegador transforme o toque em scroll/click atrasado.
+      // O próprio quadrado recebe o toque/clique. O evento é direto e não
+      // depende do elemento <span> da peça, que é recriado a cada render.
+      sq.addEventListener("click",e=>{
+        e.preventDefault();
+        e.stopPropagation();
+        onSqClick(r,c);
+      });
       sq.addEventListener("pointerdown",e=>{
         if(e.pointerType==="mouse" && e.button!==0)return;
         e.preventDefault();
         e.stopPropagation();
-        onSqClick(r,c);
       },{passive:false});
       board.appendChild(sq);
     }
@@ -1047,6 +1051,9 @@ function onSqClick(r,c){
   if(p&&Chess.color(p)===gameState.turn){
     selectedSq=[r,c];
     legalMovesCache=Chess.legalMoves(gameState.board,r,c,gameState);
+    // Mostra visualmente que a peça foi selecionada e quantos movimentos
+    // legais foram encontrados. Isso também ajuda a evitar "clique morto".
+    updateStatus(`Peça selecionada: ${Chess.toAlgebraic(r,c)} • ${legalMovesCache.length} movimento(s)`);
     renderBoard();
   }
 }
