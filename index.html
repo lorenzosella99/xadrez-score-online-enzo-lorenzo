@@ -171,7 +171,13 @@
           <option value="question">Pergunta e resposta</option>
         </select>
       </div>
-      <label class="check-line"><input id="twofa-cfg-enabled" type="checkbox"> Ativar 2FA para este jogador</label>
+      <label class="toggle-line">
+        <span class="toggle-wrap">
+          <input id="twofa-cfg-enabled" type="checkbox">
+          <span class="toggle-slider"></span>
+        </span>
+        <span class="toggle-label">Ativar 2FA para este jogador</span>
+      </label>
       <div id="twofa-question-fields" class="form-grid" style="margin-top:8px">
         <input id="twofa-cfg-question" placeholder="Pergunta secreta" maxlength="100">
         <input id="twofa-cfg-answer" type="password" placeholder="Senha / resposta da segunda etapa" maxlength="100">
