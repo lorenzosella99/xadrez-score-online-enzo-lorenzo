@@ -632,3 +632,7 @@ select:disabled{
   touch-action:none;
   -webkit-tap-highlight-color:transparent;
 }
+
+/* Partida online em andamento no histórico */
+.hist-pending{border-color:rgba(200,160,74,.45)!important;background:rgba(200,160,74,.07)}
+.hist-pending .hist-res{color:var(--accent)!important}
