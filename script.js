@@ -352,9 +352,9 @@ function renderHistorico(p){
   }
   const list=[...p.historico].reverse().slice(0,20);
   el.innerHTML=list.map(h=>{
-    const cor=h.resultado==="vitória"?"hist-win":h.resultado==="derrota"?"hist-loss":"hist-draw";
+    const cor=h.resultado==="vitória"?"hist-win":h.resultado==="derrota"?"hist-loss":h.resultado==="em andamento"?"hist-pending":"hist-draw";
     return`<div class="hist-row ${cor}">
-      <span class="hist-res">${h.resultado==="vitória"?"✓":h.resultado==="derrota"?"✗":"="}</span>
+      <span class="hist-res">${h.resultado==="vitória"?"✓":h.resultado==="derrota"?"✗":h.resultado==="em andamento"?"⏳":"="}</span>
       <span class="hist-adv">vs <strong>${esc(h.adversario||"Desconhecido")}</strong></span>
       <span class="hist-date">${h.data||""}</span>
       <span class="hist-moves">${h.movimentos||0} lances</span>
@@ -626,6 +626,7 @@ function processarEstadoMulti(estado){
     const turno=gameState?.turn==="w"?"Brancas":"Pretas";
     updateStatus(`${adversario} entrou! Você é as ${euSou}. Vez das ${turno}.`);
     toast(`${adversario} conectado! Jogo começando...`);
+    registrarPartidaPendenteMulti(estado);
     renderBoard();
     return; // Host não precisa re-aplicar movimentos — tabuleiro já está no estado correto
   }
@@ -740,6 +741,7 @@ async function entrarSalaMulti(salaId){
   multiMode=true;
   if(!(await salvarSalaOnline(s)))return;
   assinarSalaMulti(codigo);
+  registrarPartidaPendenteMulti(s);
   const turno=gameState.turn==="w"?"Brancas":"Pretas";
   updateStatus(`Partida iniciada! Você é as ${multiMinhaCor==="w"?"Brancas":"Pretas"}. Vez das ${turno}.`);
   $("topPlayerName").textContent=multiMinhaCor==="w"?s.pretas:s.brancas;
