@@ -811,7 +811,7 @@ let boardFlipped=false;
 let gameOver=false;
 let pendingPromo=null;
 let saveTimeout=null;
-let _lastBoardTouch=0; // evita duplo disparo touchend+click no mobile
+// Eventos do tabuleiro usam pointerup para mouse e toque.
 
 const PIECE_GLYPHS={'wK':'♔','wQ':'♕','wR':'♖','wB':'♗','wN':'♘','wP':'♙','bK':'♚','bQ':'♛','bR':'♜','bB':'♝','bN':'♞','bP':'♟'};
 
@@ -998,14 +998,12 @@ function renderBoard(){
       }
       const p=gameState.board[r][c];
       if(p){const span=document.createElement("span");span.className="piece";span.textContent=PIECE_GLYPHS[p];sq.appendChild(span);}
-      sq.addEventListener("touchend",e=>{
+      // Um único evento de ponteiro funciona no mouse, touchscreen e celular.
+      // Evita o conflito touchend + click que podia bloquear o tabuleiro.
+      sq.addEventListener("pointerup",e=>{
+        if(e.pointerType==="mouse" && e.button!==0)return;
         e.preventDefault();
         e.stopPropagation();
-        _lastBoardTouch=Date.now();
-        onSqClick(r,c);
-      },{passive:false});
-      sq.addEventListener("click",e=>{
-        if(Date.now()-_lastBoardTouch<800)return;
         onSqClick(r,c);
       });
       board.appendChild(sq);
