@@ -1129,7 +1129,13 @@ function executeMove(move,promote='Q'){
     gameOver=true;
     if(multiMode){
       encerrarPartidaMulti(vencedor);
-      registrarResultadoLocal(vencedor);
+      registrarResultadoMulti({
+        sala:multiSala,
+        resultado:vencedor,
+        brancas:multiMinhaCor==="w"?currentPlayer:$("topPlayerName").textContent,
+        pretas:multiMinhaCor==="b"?currentPlayer:$("topPlayerName").textContent,
+        tipoJogo:"casual"
+      });
     }else{
       clearGameSave();
       registrarResultadoLocal(vencedor,true);
@@ -1137,8 +1143,16 @@ function executeMove(move,promote='Q'){
   }else if(status==='stalemate'){
     updateStatus("½ Afogamento — Empate!");
     gameOver=true;
-    if(multiMode){encerrarPartidaMulti("empate");registrarResultadoLocal("empate");}
-    else{clearGameSave();}
+    if(multiMode){
+      encerrarPartidaMulti("empate");
+      registrarResultadoMulti({
+        sala:multiSala,
+        resultado:"empate",
+        brancas:multiMinhaCor==="w"?currentPlayer:$("topPlayerName").textContent,
+        pretas:multiMinhaCor==="b"?currentPlayer:$("topPlayerName").textContent,
+        tipoJogo:"casual"
+      });
+    }else{clearGameSave();}
   }else if(status==='check'){
     updateStatus(`⚠️ Xeque! ${gameState.turn==='w'?'Brancas':'Pretas'} devem responder.`);
     if(multiMode)enviarMovimentoMulti();else scheduleSave();
