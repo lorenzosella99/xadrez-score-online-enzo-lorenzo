@@ -215,6 +215,7 @@ input:focus{border-color:var(--accent)}
   aspect-ratio:1;display:flex;align-items:center;justify-content:center;
   cursor:pointer;position:relative;transition:background .12s;
   -webkit-touch-callout:none;user-select:none;
+  touch-action:manipulation;
 }
 .sq.light{background:var(--sq-light)}.sq.dark{background:var(--sq-dark)}
 .sq.selected{background:var(--sq-sel)!important}
