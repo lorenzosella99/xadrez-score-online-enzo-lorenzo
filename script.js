@@ -998,14 +998,14 @@ function renderBoard(){
       }
       const p=gameState.board[r][c];
       if(p){const span=document.createElement("span");span.className="piece";span.textContent=PIECE_GLYPHS[p];sq.appendChild(span);}
-      // Um único evento de ponteiro funciona no mouse, touchscreen e celular.
-      // Evita o conflito touchend + click que podia bloquear o tabuleiro.
-      sq.addEventListener("pointerup",e=>{
+      // PointerDown é disparado imediatamente tanto no mouse quanto no toque.
+      // Isso evita que o navegador transforme o toque em scroll/click atrasado.
+      sq.addEventListener("pointerdown",e=>{
         if(e.pointerType==="mouse" && e.button!==0)return;
         e.preventDefault();
         e.stopPropagation();
         onSqClick(r,c);
-      });
+      },{passive:false});
       board.appendChild(sq);
     }
   }
