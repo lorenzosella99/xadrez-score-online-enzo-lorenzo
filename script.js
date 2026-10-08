@@ -997,8 +997,18 @@ function renderBoard(){
       }
       const p=gameState.board[r][c];
       if(p){const span=document.createElement("span");span.className="piece";span.textContent=PIECE_GLYPHS[p];sq.appendChild(span);}
-      sq.addEventListener("click",()=>onSqClick(r,c));
-      sq.addEventListener("touchend",e=>{e.preventDefault();onSqClick(r,c);},{passive:false});
+      // No mobile, touchend + click sintético causam dupla chamada.
+      // Usamos apenas touchend em dispositivos touch; click para mouse.
+      let lastTouch=0;
+      sq.addEventListener("touchend",e=>{
+        e.preventDefault();
+        lastTouch=Date.now();
+        onSqClick(r,c);
+      },{passive:false});
+      sq.addEventListener("click",()=>{
+        if(Date.now()-lastTouch<600)return; // ignora click sintético após touch
+        onSqClick(r,c);
+      });
       board.appendChild(sq);
     }
   }
