@@ -612,6 +612,9 @@ function processarEstadoMulti(estado){
      estado.brancas&&estado.brancas!=="..."&&estado.pretas&&estado.pretas!=="..."){
     const adversario=multiMinhaCor==="w"?estado.pretas:estado.brancas;
     const euSou=multiMinhaCor==="w"?"Brancas":"Pretas";
+    // Garante que o jogo está em modo multi e não encerrado
+    multiMode=true;
+    gameOver=false;
     // Atualiza nomes dos jogadores no tabuleiro
     if(boardFlipped){
       $("topPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
@@ -620,10 +623,11 @@ function processarEstadoMulti(estado){
       $("topPlayerName").textContent=multiMinhaCor==="w"?estado.pretas:estado.brancas;
       $("botPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
     }
-    updateStatus(`${adversario} entrou! Você é as ${euSou}. Sua vez de jogar!`);
+    const turno=gameState?.turn==="w"?"Brancas":"Pretas";
+    updateStatus(`${adversario} entrou! Você é as ${euSou}. Vez das ${turno}.`);
     toast(`${adversario} conectado! Jogo começando...`);
     renderBoard();
-    return; // Host inicia: não precisa re-aplicar movimentos (tabuleiro já está correto)
+    return; // Host não precisa re-aplicar movimentos — tabuleiro já está no estado correto
   }
 
   // Ainda aguardando oponente
@@ -681,11 +685,12 @@ async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
   const meuNome=currentPlayer||"Jogador";
   const sala=gerarSalaId();
   const modo=modoEscolhido||"casual";
-  multiSala=sala;
   multiMinhaCor=minhaCorEscolhida;
   multiHosting=true;
+  // initGame() reseta multiSala e multiMode — setamos DEPOIS
   initGame();
   multiMode=true;
+  multiSala=sala; // deve ser setado APÓS initGame() para não ser resetado
   const estado={
     modo:"multi",tipoJogo:modo,sala,
     brancas:minhaCorEscolhida==="w"?meuNome:"...",
@@ -731,10 +736,12 @@ async function entrarSalaMulti(salaId){
   gameState=Chess.deserialize(s.tabuleiro);
   gameState.captured={w:[],b:[]};
   gameState.san=[];
+  gameOver=false;
   multiMode=true;
   if(!(await salvarSalaOnline(s)))return;
   assinarSalaMulti(codigo);
-  updateStatus(`Partida iniciada! Você é as ${multiMinhaCor==="w"?"Brancas":"Pretas"}.`);
+  const turno=gameState.turn==="w"?"Brancas":"Pretas";
+  updateStatus(`Partida iniciada! Você é as ${multiMinhaCor==="w"?"Brancas":"Pretas"}. Vez das ${turno}.`);
   $("topPlayerName").textContent=multiMinhaCor==="w"?s.pretas:s.brancas;
   $("botPlayerName").textContent=multiMinhaCor==="w"?s.brancas:s.pretas;
   $("multiRoomCode").textContent=`Sala: ${codigo}`;
