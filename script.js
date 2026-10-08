@@ -1106,6 +1106,28 @@ function onSqClick(r,c){
   }
 }
 
+function atualizarCastlingState(state,move){
+  if(!state?.castling)return;
+  const p=state.board?.[move.fr]?.[move.fc];
+  const captured=state.board?.[move.tr]?.[move.tc];
+
+  // Mover o rei elimina os dois direitos de roque.
+  if(p==="wK"){state.castling.wK=false;state.castling.wQ=false;}
+  if(p==="bK"){state.castling.bK=false;state.castling.bQ=false;}
+
+  // Mover uma torre elimina o roque daquele lado.
+  if(p==="wR"&&move.fr===7&&move.fc===0)state.castling.wQ=false;
+  if(p==="wR"&&move.fr===7&&move.fc===7)state.castling.wK=false;
+  if(p==="bR"&&move.fr===0&&move.fc===0)state.castling.bQ=false;
+  if(p==="bR"&&move.fr===0&&move.fc===7)state.castling.bK=false;
+
+  // Capturar uma torre também elimina o direito de roque correspondente.
+  if(captured==="wR"&&move.tr===7&&move.tc===0)state.castling.wQ=false;
+  if(captured==="wR"&&move.tr===7&&move.tc===7)state.castling.wK=false;
+  if(captured==="bR"&&move.tr===0&&move.tc===0)state.castling.bQ=false;
+  if(captured==="bR"&&move.tr===0&&move.tc===7)state.castling.bK=false;
+}
+
 function executeMove(move,promote='Q'){
   const san=Chess.moveToSAN(gameState.board,move,gameState)+(move.promote?'='+promote:'');
   if(gameState.board[move.tr][move.tc]){
