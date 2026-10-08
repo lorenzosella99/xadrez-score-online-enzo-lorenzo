@@ -607,15 +607,27 @@ function processarEstadoMulti(estado){
   if((estado.versao||0)<=multiVersaoLocal)return;
   multiVersaoLocal=estado.versao||0;
 
-  if(estado.status==="aguardando"&&multiHosting){
-    if(estado.brancas!=="..."&&estado.pretas!=="..."){
-      updateStatus(`${estado.pretas} entrou! Partida iniciada. Você é as Brancas.`);
-      $("topPlayerName").textContent=estado.pretas;
-      $("botPlayerName").textContent=estado.brancas;
-      toast("Oponente conectado!");
+  // Host detecta quando o oponente entrou (status mudou para "jogando")
+  if(multiHosting&&estado.status==="jogando"&&
+     estado.brancas&&estado.brancas!=="..."&&estado.pretas&&estado.pretas!=="..."){
+    const adversario=multiMinhaCor==="w"?estado.pretas:estado.brancas;
+    const euSou=multiMinhaCor==="w"?"Brancas":"Pretas";
+    // Atualiza nomes dos jogadores no tabuleiro
+    if(boardFlipped){
+      $("topPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
+      $("botPlayerName").textContent=multiMinhaCor==="w"?estado.pretas:estado.brancas;
+    } else {
+      $("topPlayerName").textContent=multiMinhaCor==="w"?estado.pretas:estado.brancas;
+      $("botPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
     }
-    return;
+    updateStatus(`${adversario} entrou! Você é as ${euSou}. Sua vez de jogar!`);
+    toast(`${adversario} conectado! Jogo começando...`);
+    renderBoard();
+    return; // Host inicia: não precisa re-aplicar movimentos (tabuleiro já está correto)
   }
+
+  // Ainda aguardando oponente
+  if(estado.status==="aguardando")return;
 
   if(estado.status==="encerrado"){
     const res=estado.resultado;

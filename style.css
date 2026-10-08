@@ -161,7 +161,33 @@ input:focus{border-color:var(--accent)}
 /* ===== CHESS GAME ===== */
 .game-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
 .game-controls{display:flex;gap:8px;flex-wrap:wrap}
-.game-btn{padding:9px 14px!important;margin-top:0!important;font-size:13px!important}
+.game-btn{padding:9px 14px!important;margin-top:0!important;font-size:13px!important;white-space:nowrap}
+
+/* Painel de controle do jogo */
+.game-control-panel{
+  background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px;
+}
+.game-selects-row{
+  display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;
+}
+.ctrl-label{
+  display:flex;flex-direction:column;gap:4px;
+  font-size:11px;font-weight:800;color:var(--muted);
+  letter-spacing:.06em;text-transform:uppercase;flex:1;min-width:140px;
+}
+.ctrl-select{margin:0!important}
+.game-actions-row{
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+}
+.game-actions-row .primary{
+  flex:0 1 auto;width:auto;margin:0;padding:9px 18px;font-size:13px;
+}
+.game-actions-row .secondary{
+  flex:0 1 auto;padding:9px 14px;font-size:13px;margin:0;
+}
+.multi-btn{border-color:var(--accent2);color:var(--accent2)}
+.multi-btn:hover{background:rgba(61,110,173,.12);border-color:var(--accent2)}
 
 .game-layout{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
 
@@ -434,6 +460,12 @@ textarea:focus{border-color:var(--accent)}
 .tut-nav{display:flex;align-items:center;justify-content:space-between;margin-top:14px}
 .tut-counter{font-weight:700;font-size:13px;color:var(--muted)}
 
+/* ===== GAME TOPBAR ===== */
+.game-topbar{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;
+}
+.game-title{margin:0;font-size:clamp(20px,4vw,28px)}
+
 /* ===== MULTIPLAYER ROOM CODE ===== */
 .multi-room-code{
   text-align:center;padding:10px 16px;margin-bottom:12px;
@@ -513,28 +545,11 @@ select:disabled{
 }
 
 
-/* ===== MODO DE JOGO / BOT ===== */
-.game-mode-panel{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-  margin:0 0 14px;
-  padding:12px;
-  border:1px solid var(--border);
-  border-radius:12px;
-  background:rgba(232,201,154,.82);
-}
-.game-mode-panel label{
-  display:flex;
-  flex-direction:column;
-  gap:5px;
-  color:var(--muted);
-  font-size:12px;
-  font-weight:800;
-}
-.game-mode-panel .admin-select{
-  margin:0;
-}
-@media(max-width:700px){
-  .game-mode-panel{grid-template-columns:1fr}
+/* ===== MODO DE JOGO RESPONSIVO ===== */
+@media(max-width:600px){
+  .game-selects-row{flex-direction:column;}
+  .ctrl-label{min-width:100%;}
+  .game-actions-row{gap:6px;}
+  .game-actions-row .primary,
+  .game-actions-row .secondary{flex:1 1 calc(50% - 6px);text-align:center;}
 }

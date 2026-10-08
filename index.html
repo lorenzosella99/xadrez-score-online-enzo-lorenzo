@@ -205,43 +205,51 @@
 
   <!-- JOGO DE XADREZ -->
   <section id="gameScreen" class="screen">
-    <div class="game-header">
-      <h1>🎮 Jogar Xadrez</h1>
-      <div class="game-controls">
-        <button id="btnNewGame" class="primary game-btn">Nova partida</button>
+    <div class="game-topbar">
+      <h1 class="game-title">🎮 Xadrez</h1>
+      <div id="multiRoomCode" class="multi-room-code" style="display:none"></div>
+    </div>
+
+    <!-- Painel único de controles -->
+    <div class="game-control-panel">
+      <!-- Linha 1: Modo + Nível Bot -->
+      <div class="game-selects-row">
+        <label class="ctrl-label">Modo
+          <select id="gameModeSelect" class="admin-select ctrl-select">
+            <option value="local">👥 Local (2 jogadores)</option>
+            <option value="bot">🤖 Contra Bot</option>
+          </select>
+        </label>
+        <label id="botLevelWrap" class="ctrl-label">Nível do Bot
+          <select id="botLevelSelect" class="admin-select ctrl-select">
+            <option value="1">1 — Muito fácil</option>
+            <option value="2">2 — Fácil</option>
+            <option value="3">3 — Básico</option>
+            <option value="4">4 — Iniciante</option>
+            <option value="5">5 — Intermediário</option>
+            <option value="6">6 — Bom</option>
+            <option value="7">7 — Forte</option>
+            <option value="8">8 — Muito forte</option>
+            <option value="9">9 — Avançado</option>
+            <option value="10">10 — Mestre</option>
+          </select>
+        </label>
+      </div>
+      <!-- Linha 2: Botões de ação -->
+      <div class="game-actions-row">
+        <button id="btnNewGame" class="primary game-btn">▶ Nova</button>
         <button id="btnUndoMove" class="secondary game-btn">↩ Desfazer</button>
         <button id="btnFlipBoard" class="secondary game-btn">🔄 Girar</button>
-        <button id="btnCriarSala" class="secondary game-btn">👥 Multiplayer</button>
+        <button id="btnLoadGame" class="secondary game-btn">📂 Carregar</button>
+        <button id="btnCriarSala" class="secondary game-btn multi-btn">👥 Multiplayer</button>
+      </div>
+      <!-- Linha 3: Blistx info -->
+      <div class="blistx-game-bar" id="blistxGameBar">
+        <span id="blistxInfoGame" class="blistx-info-game"></span>
+        <span class="hint" style="font-size:11px">por partida registrada</span>
       </div>
     </div>
-    <div id="multiRoomCode" class="multi-room-code" style="display:none"></div>
-    <div class="game-mode-panel">
-      <label>Modo de jogo
-        <select id="gameModeSelect" class="admin-select">
-          <option value="local">👥 Dois jogadores no mesmo dispositivo</option>
-          <option value="bot">🤖 Contra Bot</option>
-        </select>
-      </label>
-      <label id="botLevelWrap">Nível do Bot
-        <select id="botLevelSelect" class="admin-select">
-          <option value="1">Nível 1 — Muito fácil</option>
-          <option value="2">Nível 2 — Fácil</option>
-          <option value="3">Nível 3 — Básico</option>
-          <option value="4">Nível 4 — Iniciante</option>
-          <option value="5">Nível 5 — Intermediário</option>
-          <option value="6">Nível 6 — Bom</option>
-          <option value="7">Nível 7 — Forte</option>
-          <option value="8">Nível 8 — Muito forte</option>
-          <option value="9">Nível 9 — Avançado</option>
-          <option value="10">Nível 10 — Mestre</option>
-        </select>
-      </label>
-    </div>
-    <!-- Blistx em jogo -->
-    <div class="blistx-game-bar" id="blistxGameBar">
-      <span id="blistxInfoGame" class="blistx-info-game"></span>
-      <span class="hint" style="font-size:11px">por partida registrada</span>
-    </div>
+
     <div class="game-layout">
       <div class="game-left">
         <div class="player-tag" id="topPlayerTag"><span class="p-color black-dot"></span><span id="topPlayerName">Pretas</span><span id="topTimer" class="timer">10:00</span></div>
@@ -259,7 +267,6 @@
         </div>
         <div class="save-game-card">
           <p class="hint">Partida salva automaticamente no GitHub.</p>
-          <button id="btnLoadGame" class="secondary game-btn" style="width:100%;margin-top:6px">📂 Carregar partida salva</button>
         </div>
       </div>
     </div>
