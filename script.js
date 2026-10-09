@@ -1017,9 +1017,38 @@ function initGame(){
   $("botPlayerName").textContent="Brancas";
 }
 
+// ── Delegação de eventos no tabuleiro (inicializado uma única vez) ──────────
+let _boardEventsReady=false;
+function ensureBoardEvents(){
+  if(_boardEventsReady)return;
+  const board=document.getElementById("chessboard");
+  if(!board)return;
+  _boardEventsReady=true;
+  let _touchHandled=false;
+  // Touch: usa elementFromPoint para ignorar pointer-events:none do .piece
+  board.addEventListener("touchend",e=>{
+    const t=e.changedTouches[0];
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    const sq=el&&el.closest(".sq");
+    if(!sq)return;
+    e.preventDefault();
+    _touchHandled=true;
+    setTimeout(()=>{_touchHandled=false;},500);
+    onSqClick(Number(sq.dataset.r),Number(sq.dataset.c));
+  },{passive:false});
+  // Desktop: click normal, ignora se veio de touch
+  board.addEventListener("click",e=>{
+    if(_touchHandled)return;
+    const sq=e.target.closest(".sq");
+    if(!sq)return;
+    onSqClick(Number(sq.dataset.r),Number(sq.dataset.c));
+  });
+}
+
 function renderBoard(){
   const board=$("chessboard");
   if(!board)return;
+  ensureBoardEvents();
   if(!gameState){board.innerHTML='';return;}
   board.innerHTML='';
   for(let ri=0;ri<8;ri++){
@@ -1046,18 +1075,6 @@ function renderBoard(){
       }
       const p=gameState.board[r][c];
       if(p){const span=document.createElement("span");span.className="piece";span.textContent=PIECE_GLYPHS[p];sq.appendChild(span);}
-      // O próprio quadrado recebe o toque/clique. O evento é direto e não
-      // depende do elemento <span> da peça, que é recriado a cada render.
-      sq.addEventListener("click",e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        onSqClick(r,c);
-      });
-      sq.addEventListener("pointerdown",e=>{
-        if(e.pointerType==="mouse" && e.button!==0)return;
-        e.preventDefault();
-        e.stopPropagation();
-      },{passive:false});
       board.appendChild(sq);
     }
   }
