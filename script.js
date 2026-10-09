@@ -540,6 +540,7 @@ let multiMinhaCor=null;
 let multiChannel=null;
 let multiHosting=false;
 let multiVersaoLocal=0;
+let multiOponenteDetectado=false;
 
 const XADREZ_SUPABASE_URL=window.XADREZ_SUPABASE_URL||"";
 const XADREZ_SUPABASE_KEY=window.XADREZ_SUPABASE_KEY||"";
@@ -607,15 +608,15 @@ function processarEstadoMulti(estado){
   if((estado.versao||0)<=multiVersaoLocal)return;
   multiVersaoLocal=estado.versao||0;
 
-  // Host detecta quando o oponente entrou (status mudou para "jogando")
+  // Host detecta quando o oponente entrou pela primeira vez (nenhum movimento feito ainda)
   if(multiHosting&&estado.status==="jogando"&&
-     estado.brancas&&estado.brancas!=="..."&&estado.pretas&&estado.pretas!=="..."){
+     estado.brancas&&estado.brancas!=="..."&&estado.pretas&&estado.pretas!=="..."&&
+     !multiOponenteDetectado){
+    multiOponenteDetectado=true;
     const adversario=multiMinhaCor==="w"?estado.pretas:estado.brancas;
     const euSou=multiMinhaCor==="w"?"Brancas":"Pretas";
-    // Garante que o jogo está em modo multi e não encerrado
     multiMode=true;
     gameOver=false;
-    // Atualiza nomes dos jogadores no tabuleiro
     if(boardFlipped){
       $("topPlayerName").textContent=multiMinhaCor==="w"?estado.brancas:estado.pretas;
       $("botPlayerName").textContent=multiMinhaCor==="w"?estado.pretas:estado.brancas;
@@ -628,7 +629,7 @@ function processarEstadoMulti(estado){
     toast(`${adversario} conectado! Jogo começando...`);
     registrarPartidaPendenteMulti(estado);
     renderBoard();
-    return; // Host não precisa re-aplicar movimentos — tabuleiro já está no estado correto
+    return; // Na entrada do oponente o tabuleiro está zerado — não há movimentos para processar
   }
 
   // Ainda aguardando oponente
@@ -688,6 +689,7 @@ async function criarSalaMulti(minhaCorEscolhida,modoEscolhido){
   const modo=modoEscolhido||"casual";
   multiMinhaCor=minhaCorEscolhida;
   multiHosting=true;
+  multiOponenteDetectado=false;
   // initGame() reseta multiSala e multiMode — setamos DEPOIS
   initGame();
   multiMode=true;
