@@ -1331,10 +1331,28 @@ async function loadGame(){
 // ============================================================
 document.querySelectorAll("[data-screen]").forEach(b=>b.onclick=()=>{playClique();show(b.dataset.screen);});
 
-// Login/cadastro por código de e-mail via Supabase Auth.
+// Acesso por e-mail: cadastro, login e recuperação de acesso usam OTP do Supabase.
 let playerOtpEmail="";
+let playerAuthMode="signup";
 let authProfileBusy=false;
 function setPlayerAuthError(message){const el=$("playerError");if(el)el.textContent=message||"";}
+function setPlayerAuthMode(mode){
+  playerAuthMode=["signup","login","recover"].includes(mode)?mode:"signup";
+  document.querySelectorAll("[data-auth-mode]").forEach(button=>button.classList.toggle("active",button.dataset.authMode===playerAuthMode));
+  $("playerNameLabel").style.display=playerAuthMode==="signup"?"block":"none";
+  $("playerName").style.display=playerAuthMode==="signup"?"block":"none";
+  $("authHeading").textContent=playerAuthMode==="signup"?"Sua próxima partida começa aqui.":playerAuthMode==="login"?"Bom ter você de volta.":"Recupere seu acesso.";
+  $("authSubtitle").textContent=playerAuthMode==="signup"
+    ?"Crie sua conta para salvar seu perfil, acompanhar o blistx e guardar seu histórico."
+    :playerAuthMode==="login"
+      ?"Entre com o e-mail da sua conta. Vamos enviar um código de confirmação."
+      :"Informe o e-mail da sua conta para receber um novo código de acesso.";
+  $("enterPlayer").innerHTML=(playerAuthMode==="recover"?"Enviar código de recuperação":"Enviar código por e-mail")+' <span aria-hidden="true">→</span>';
+  $("playerCodeWrap").style.display="none";
+  $("playerCode").value="";
+  setPlayerAuthError("");
+}
+document.querySelectorAll("[data-auth-mode]").forEach(button=>button.addEventListener("click",()=>setPlayerAuthMode(button.dataset.authMode)));
 async function getOwnPlayerProfile(userId){
   if(!supabaseClient||!userId)return null;
   const {data,error}=await supabaseClient.from("xadrez_perfis").select("user_id,nome_jogador").eq("user_id",userId).maybeSingle();
@@ -1348,7 +1366,7 @@ async function activatePlayerSession(user,requestedName,showWelcome=true){
     let profile=await getOwnPlayerProfile(user.id);
     if(!profile){
       const name=String(requestedName||user.user_metadata?.display_name||"").trim().slice(0,30);
-      if(!name)throw new Error("Digite seu nome de jogador para concluir o cadastro.");
+      if(!name)throw new Error("Não encontramos um perfil de jogador para esta conta. Crie uma conta primeiro.");
       const {data,error}=await supabaseClient.from("xadrez_perfis").insert({user_id:user.id,nome_jogador:name}).select("user_id,nome_jogador").single();
       if(error){
         if(error.code==="23505")throw new Error("Esse nome já está vinculado a outra conta. Escolha outro nome ou entre na conta correta.");
@@ -1381,18 +1399,27 @@ $("enterPlayer").onclick=async()=>{
   if(!supabaseClient){setPlayerAuthError("O Supabase não está configurado. Confira a conexão do projeto.");return;}
   const name=$("playerName").value.trim();
   const email=$("playerEmail").value.trim().toLowerCase();
-  if(!name||name.length>30){setPlayerAuthError("Digite um nome de jogador com até 30 caracteres.");return;}
+  if(playerAuthMode==="signup"&&(!name||name.length>30)){setPlayerAuthError("Digite um nome de jogador com até 30 caracteres.");return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setPlayerAuthError("Digite um e-mail válido.");return;}
-  setPlayerAuthError("Enviando código...");
+  setPlayerAuthError(playerAuthMode==="recover"?"Enviando código de recuperação...":"Enviando código...");
   const {error}=await supabaseClient.auth.signInWithOtp({
     email,
-    options:{shouldCreateUser:true,data:{display_name:name}}
+    options:{
+      shouldCreateUser:playerAuthMode==="signup",
+      ...(playerAuthMode==="signup"?{data:{display_name:name}}:{})
+    }
   });
-  if(error){setPlayerAuthError(error.message||"Não foi possível enviar o código.");return;}
+  if(error){
+    const msg=String(error.message||"");
+    setPlayerAuthError(playerAuthMode!=="signup"&&/user not found|no user|not found/i.test(msg)
+      ?"Não encontramos uma conta com esse e-mail. Confira o endereço ou crie uma conta."
+      :(error.message||"Não foi possível enviar o código."));
+    return;
+  }
   playerOtpEmail=email;
   $("playerCodeWrap").style.display="block";
   $("playerCode").focus();
-  setPlayerAuthError("Código enviado para "+email+". Confira também a pasta de spam.");
+  setPlayerAuthError("Enviamos um código para "+email+". Confira também a pasta de spam.");
 };
 $("verifyPlayerCode").onclick=async()=>{
   playClique();
@@ -1402,12 +1429,24 @@ $("verifyPlayerCode").onclick=async()=>{
   setPlayerAuthError("Confirmando código...");
   const {data,error}=await supabaseClient.auth.verifyOtp({email:playerOtpEmail,token,type:"email"});
   if(error){setPlayerAuthError("Código inválido ou expirado. Solicite outro e tente novamente.");return;}
+  if(playerAuthMode!=="signup"){
+    try{
+      const profile=await getOwnPlayerProfile(data.user.id);
+      if(!profile){
+        await supabaseClient.auth.signOut();
+        setPlayerAuthError("Não encontramos um perfil de jogador para esse e-mail. Se ainda não tem conta, escolha “Criar conta”.");
+        return;
+      }
+    }catch(err){
+      setPlayerAuthError("Não foi possível consultar sua conta. Tente novamente.");
+      return;
+    }
+  }
   await activatePlayerSession(data.user,$("playerName").value.trim(),true);
 };
 $("playerName").onkeydown=e=>{if(e.key==="Enter")$("playerEmail").focus();};
 $("playerEmail").onkeydown=e=>{if(e.key==="Enter")$("enterPlayer").click();};
 $("playerCode").onkeydown=e=>{if(e.key==="Enter")$("verifyPlayerCode").click();};
-// Supabase Auth guarda a sessão no localStorage e restaura-a ao recarregar a página.
 if(supabaseClient){
   supabaseClient.auth.onAuthStateChange((event,session)=>{
     if(event==="INITIAL_SESSION"&&session?.user){
