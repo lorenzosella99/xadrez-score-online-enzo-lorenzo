@@ -20,9 +20,10 @@ A senha fornecida foi convertida para SHA-256 e o texto da senha não fica no c�
 
 ## Conta de jogador (Supabase Auth)
 
-- Cadastro/entrada por e-mail com código OTP.
+- Cadastro e entrada por e-mail com código OTP, com painel minimalista e opção de recuperação de acesso pelo e-mail.
 - O perfil vincula o usuário autenticado ao nome de jogador em `xadrez_perfis`.
 - A sessão do Supabase é mantida no armazenamento local do navegador e restaurada ao atualizar a página.
+- A opção **Recuperar** envia um novo código para o e-mail cadastrado; como o projeto usa OTP, não há senha para redefinir.
 - A tabela `xadrez_perfis` usa RLS para que cada usuário só leia/edite o próprio perfil.
 
 ### Ativar o código numérico no e-mail
