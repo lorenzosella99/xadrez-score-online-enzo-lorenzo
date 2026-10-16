@@ -63,17 +63,29 @@
 
   <!-- LOGIN JOGADOR -->
   <section id="playerLogin" class="screen">
-    <div class="panel">
-      <h1>Entrar ou criar conta</h1>
-      <p>Use seu e-mail para receber um código de confirmação. Sua sessão ficará salva neste navegador.</p>
-      <input id="playerName" maxlength="30" placeholder="Nome de jogador (até 30 caracteres)" autocomplete="nickname">
-      <input id="playerEmail" type="email" maxlength="254" placeholder="Seu e-mail" autocomplete="email">
-      <button id="enterPlayer" class="primary">Enviar código por e-mail</button>
-      <div id="playerCodeWrap" style="display:none;margin-top:10px">
-        <input id="playerCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Código recebido por e-mail">
-        <button id="verifyPlayerCode" class="primary" style="margin-top:8px">Confirmar código e entrar</button>
+    <div class="auth-shell">
+      <div class="auth-mark" aria-hidden="true">♞</div>
+      <p class="auth-kicker">XADREZ SCORE ONLINE</p>
+      <h1 id="authHeading">Sua próxima partida começa aqui.</h1>
+      <p id="authSubtitle" class="auth-subtitle">Crie sua conta para salvar seu perfil, acompanhar o blistx e guardar seu histórico.</p>
+      <div class="auth-mode-switch" role="group" aria-label="Tipo de acesso">
+        <button type="button" class="auth-mode active" data-auth-mode="signup">Criar conta</button>
+        <button type="button" class="auth-mode" data-auth-mode="login">Entrar</button>
+        <button type="button" class="auth-mode" data-auth-mode="recover">Recuperar</button>
       </div>
-      <p id="playerError" class="error" role="status" aria-live="polite"></p>
+      <label id="playerNameLabel" class="auth-label" for="playerName">Nome de jogador</label>
+      <input id="playerName" class="auth-input" maxlength="30" placeholder="Como quer aparecer no ranking" autocomplete="nickname">
+      <label class="auth-label" for="playerEmail">E-mail</label>
+      <input id="playerEmail" class="auth-input" type="email" maxlength="254" placeholder="voce@exemplo.com" autocomplete="email">
+      <button id="enterPlayer" class="primary auth-submit">Enviar código por e-mail <span aria-hidden="true">→</span></button>
+      <div id="playerCodeWrap" class="auth-code-wrap" style="display:none">
+        <label class="auth-label" for="playerCode">Código de confirmação</label>
+        <input id="playerCode" class="auth-input auth-code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Digite o código do e-mail">
+        <button id="verifyPlayerCode" class="primary auth-submit">Confirmar e continuar <span aria-hidden="true">→</span></button>
+      </div>
+      <p id="playerError" class="error auth-message" role="status" aria-live="polite"></p>
+      <p class="auth-footnote"><span aria-hidden="true">🔒</span> Acesso seguro por e-mail. Você continuará conectado neste navegador.</p>
+      <button type="button" class="auth-back" data-screen="home">← Voltar ao ranking</button>
     </div>
   </section>
 
