@@ -875,10 +875,10 @@ const BOT_LEVELS={
   4:{depth:1,random:.08,nodes:800},
   5:{depth:2,random:.12,nodes:1800},
   6:{depth:2,random:.04,nodes:3000},
-  7:{depth:3,random:.08,nodes:2500},
-  8:{depth:3,random:.025,nodes:3500},
-  9:{depth:4,random:.04,nodes:4500},
-  10:{depth:4,random:0,nodes:6000}
+  7:{depth:3,random:.08,nodes:2400},
+  8:{depth:3,random:.025,nodes:2800},
+  9:{depth:4,random:.04,nodes:4200},
+  10:{depth:4,random:0,nodes:5400}
 };
 const BOT_VALUE={P:100,N:320,B:330,R:500,Q:900,K:20000};
 
@@ -970,10 +970,15 @@ function escolherMovimentoBot(){
     const pool=Math.max(1,Math.ceil(scored.length*(cfg.random||0.05)));
     return scored[Math.floor(Math.random()*pool)].m;
   }
+  // Limita a largura da busca e o custo por jogada para não congelar
+  // o navegador em posições complexas (principalmente níveis 8–10).
   const candidates=[];
-  for(const m of moves.slice(0,Math.min(moves.length,36))){
+  const rootLimit=botLevel>=10?12:botLevel>=9?14:botLevel>=8?16:20;
+  const roots=moves.slice(0,Math.min(moves.length,rootLimit));
+  const nodeBudget=Math.max(180,Math.floor(cfg.nodes/Math.max(1,roots.length)));
+  for(const m of roots){
     const ns=applyBotMoveState(gameState,m);
-    const limits={nodes:0,maxNodes:cfg.nodes};
+    const limits={nodes:0,maxNodes:nodeBudget};
     const res=botSearch(ns,cfg.depth-1,-Infinity,Infinity,"b",limits);
     candidates.push({m,score:res.score});
   }
@@ -1326,20 +1331,95 @@ async function loadGame(){
 // ============================================================
 document.querySelectorAll("[data-screen]").forEach(b=>b.onclick=()=>{playClique();show(b.dataset.screen);});
 
-$("enterPlayer").onclick=()=>{
+// Login/cadastro por código de e-mail via Supabase Auth.
+let playerOtpEmail="";
+let authProfileBusy=false;
+function setPlayerAuthError(message){const el=$("playerError");if(el)el.textContent=message||"";}
+async function getOwnPlayerProfile(userId){
+  if(!supabaseClient||!userId)return null;
+  const {data,error}=await supabaseClient.from("xadrez_perfis").select("user_id,nome_jogador").eq("user_id",userId).maybeSingle();
+  if(error){console.error("Perfil Supabase:",error);throw error;}
+  return data;
+}
+async function activatePlayerSession(user,requestedName,showWelcome=true){
+  if(!user||!supabaseClient||authProfileBusy)return;
+  authProfileBusy=true;
+  try{
+    let profile=await getOwnPlayerProfile(user.id);
+    if(!profile){
+      const name=String(requestedName||user.user_metadata?.display_name||"").trim().slice(0,30);
+      if(!name)throw new Error("Digite seu nome de jogador para concluir o cadastro.");
+      const {data,error}=await supabaseClient.from("xadrez_perfis").insert({user_id:user.id,nome_jogador:name}).select("user_id,nome_jogador").single();
+      if(error){
+        if(error.code==="23505")throw new Error("Esse nome já está vinculado a outra conta. Escolha outro nome ou entre na conta correta.");
+        throw error;
+      }
+      profile=data;
+    }
+    let player=players.find(p=>p.name.toLowerCase()===profile.nome_jogador.toLowerCase());
+    if(!player){
+      player=normalizarJogador({name:profile.nome_jogador,score:0,historico:[],suspeitoFarm:false});
+      players.push(player);persist();renderPublic();renderAdmin();
+    }
+    currentPlayer=player.name;
+    setPlayerAuthError("");
+    show("playerArea");
+    const welcomeKey="xadrez-welcome-seen-"+user.id;
+    if(showWelcome&&!localStorage.getItem(welcomeKey)){
+      toast("🎉 Bem-vindo(a), "+player.name+"! Sua conta está pronta.");
+      localStorage.setItem(welcomeKey,"1");
+    }else if(showWelcome){
+      toast("Que bom ter você de volta, "+player.name+"!");
+    }
+  }catch(error){
+    console.error("Login do jogador:",error);
+    setPlayerAuthError(error.message||"Não foi possível carregar sua conta. Tente novamente.");
+  }finally{authProfileBusy=false;}
+}
+$("enterPlayer").onclick=async()=>{
   playClique();
-  const n=$("playerName").value.trim(),p=players.find(x=>x.name.toLowerCase()===n.toLowerCase());
-  if(!p){$("playerError").textContent="Jogador não encontrado.";return;}
-  const cfg=p.auth?.twoFA;
-  if(cfg?.enabled&&cfg.secretHash){
-    verificar2FA("Login",()=>{
-      currentPlayer=p.name;$("playerError").textContent="";show("playerArea");
-    },cfg);
-    return;
-  }
-  currentPlayer=p.name;$("playerError").textContent="";show("playerArea");
+  if(!supabaseClient){setPlayerAuthError("O Supabase não está configurado. Confira a conexão do projeto.");return;}
+  const name=$("playerName").value.trim();
+  const email=$("playerEmail").value.trim().toLowerCase();
+  if(!name||name.length>30){setPlayerAuthError("Digite um nome de jogador com até 30 caracteres.");return;}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setPlayerAuthError("Digite um e-mail válido.");return;}
+  setPlayerAuthError("Enviando código...");
+  const {error}=await supabaseClient.auth.signInWithOtp({
+    email,
+    options:{shouldCreateUser:true,data:{display_name:name}}
+  });
+  if(error){setPlayerAuthError(error.message||"Não foi possível enviar o código.");return;}
+  playerOtpEmail=email;
+  $("playerCodeWrap").style.display="block";
+  $("playerCode").focus();
+  setPlayerAuthError("Código enviado para "+email+". Confira também a pasta de spam.");
 };
-$("playerName").onkeydown=e=>{if(e.key==="Enter")$("enterPlayer").click();};
+$("verifyPlayerCode").onclick=async()=>{
+  playClique();
+  const token=$("playerCode").value.trim();
+  if(!supabaseClient||!playerOtpEmail){setPlayerAuthError("Primeiro solicite um código por e-mail.");return;}
+  if(!/^\d{6,8}$/.test(token)){setPlayerAuthError("Digite o código numérico recebido por e-mail.");return;}
+  setPlayerAuthError("Confirmando código...");
+  const {data,error}=await supabaseClient.auth.verifyOtp({email:playerOtpEmail,token,type:"email"});
+  if(error){setPlayerAuthError("Código inválido ou expirado. Solicite outro e tente novamente.");return;}
+  await activatePlayerSession(data.user,$("playerName").value.trim(),true);
+};
+$("playerName").onkeydown=e=>{if(e.key==="Enter")$("playerEmail").focus();};
+$("playerEmail").onkeydown=e=>{if(e.key==="Enter")$("enterPlayer").click();};
+$("playerCode").onkeydown=e=>{if(e.key==="Enter")$("verifyPlayerCode").click();};
+// Supabase Auth guarda a sessão no localStorage e restaura-a ao recarregar a página.
+if(supabaseClient){
+  supabaseClient.auth.onAuthStateChange((event,session)=>{
+    if((event==="INITIAL_SESSION"||event==="SIGNED_IN")&&session?.user){
+      setTimeout(async()=>{
+        try{
+          const profile=await getOwnPlayerProfile(session.user.id);
+          if(profile&&!currentPlayer)await activatePlayerSession(session.user,profile.nome_jogador,false);
+        }catch(error){console.error("Restaurar sessão:",error);}
+      },0);
+    }
+  });
+}
 
 $("enterAdmin").onclick=async()=>{
   playClique();
@@ -1348,7 +1428,7 @@ $("enterAdmin").onclick=async()=>{
 };
 $("adminPassword").onkeydown=e=>{if(e.key==="Enter")$("enterAdmin").click();};
 
-$("logoutPlayer").onclick=()=>{playClique();currentPlayer=null;show("home");};
+$("logoutPlayer").onclick=async()=>{playClique();if(supabaseClient)await supabaseClient.auth.signOut();currentPlayer=null;playerOtpEmail="";$("playerCodeWrap").style.display="none";$("playerCode").value="";show("home");};
 $("logoutAdmin").onclick=()=>{playClique();show("home");};
 
 $("saveScore").onclick=async()=>{
