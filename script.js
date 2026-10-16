@@ -1410,7 +1410,7 @@ $("playerCode").onkeydown=e=>{if(e.key==="Enter")$("verifyPlayerCode").click();}
 // Supabase Auth guarda a sessão no localStorage e restaura-a ao recarregar a página.
 if(supabaseClient){
   supabaseClient.auth.onAuthStateChange((event,session)=>{
-    if((event==="INITIAL_SESSION"||event==="SIGNED_IN")&&session?.user){
+    if(event==="INITIAL_SESSION"&&session?.user){
       setTimeout(async()=>{
         try{
           const profile=await getOwnPlayerProfile(session.user.id);
@@ -1668,6 +1668,9 @@ document.querySelectorAll(".tut-peca-btn").forEach((b,i)=>{
       const d=JSON.parse(raw);
       if(Array.isArray(d)&&d.length){
         players=d.map(p=>normalizarJogador({historico:[],suspeitoFarm:false,...p})).filter(x=>x&&typeof x.name==="string"&&Number.isFinite(Number(x.score)));
+        if(currentPlayer&&!players.some(p=>p.name.toLowerCase()===currentPlayer.toLowerCase())){
+          players.push(normalizarJogador({name:currentPlayer,score:0,historico:[],suspeitoFarm:false}));
+        }
         persist();renderPublic();renderAdmin();renderTwoFAPlayers();
       }
     }catch{}
