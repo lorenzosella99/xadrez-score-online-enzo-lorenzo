@@ -1339,8 +1339,12 @@ function setPlayerAuthError(message){const el=$("playerError");if(el)el.textCont
 function setPlayerAuthMode(mode){
   playerAuthMode=["signup","login","recover"].includes(mode)?mode:"signup";
   document.querySelectorAll("[data-auth-mode]").forEach(button=>button.classList.toggle("active",button.dataset.authMode===playerAuthMode));
-  $("playerNameLabel").style.display=playerAuthMode==="signup"?"block":"none";
-  $("playerName").style.display=playerAuthMode==="signup"?"block":"none";
+  const showNickname=playerAuthMode==="signup"||playerAuthMode==="login";
+  $("playerNameLabel").style.display=showNickname?"block":"none";
+  $("playerName").style.display=showNickname?"block":"none";
+  $("playerNameLabel").textContent=playerAuthMode==="login"?"Apelido cadastrado":"Nome de jogador";
+  $("playerName").placeholder=playerAuthMode==="login"?"Digite seu apelido cadastrado":"Como quer aparecer no ranking";
+  $("playerName").autocomplete=playerAuthMode==="login"?"nickname":"nickname";
   $("authHeading").textContent=playerAuthMode==="signup"?"Sua próxima partida começa aqui.":playerAuthMode==="login"?"Bom ter você de volta.":"Recupere seu acesso.";
   $("authSubtitle").textContent=playerAuthMode==="signup"
     ?"Crie sua conta para salvar seu perfil, acompanhar o blistx e guardar seu histórico."
@@ -1399,7 +1403,7 @@ $("enterPlayer").onclick=async()=>{
   if(!supabaseClient){setPlayerAuthError("O Supabase não está configurado. Confira a conexão do projeto.");return;}
   const name=$("playerName").value.trim();
   const email=$("playerEmail").value.trim().toLowerCase();
-  if(playerAuthMode==="signup"&&(!name||name.length>30)){setPlayerAuthError("Digite um nome de jogador com até 30 caracteres.");return;}
+  if((playerAuthMode==="signup"||playerAuthMode==="login")&&(!name||name.length>30)){setPlayerAuthError(playerAuthMode==="login"?"Digite o apelido cadastrado na sua conta.":"Digite um nome de jogador com até 30 caracteres.");return;}
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){setPlayerAuthError("Digite um e-mail válido.");return;}
   setPlayerAuthError(playerAuthMode==="recover"?"Enviando código de recuperação...":"Enviando código...");
   const {error}=await supabaseClient.auth.signInWithOtp({
@@ -1435,6 +1439,11 @@ $("verifyPlayerCode").onclick=async()=>{
       if(!profile){
         await supabaseClient.auth.signOut();
         setPlayerAuthError("Não encontramos um perfil de jogador para esse e-mail. Se ainda não tem conta, escolha “Criar conta”.");
+        return;
+      }
+      if(playerAuthMode==="login"&&String(profile.nome_jogador||"").trim().toLocaleLowerCase("pt-BR")!==String($("playerName").value||"").trim().toLocaleLowerCase("pt-BR")){
+        await supabaseClient.auth.signOut();
+        setPlayerAuthError("O apelido não corresponde ao e-mail informado. Confira os dois dados e tente novamente.");
         return;
       }
     }catch(err){
