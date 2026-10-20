@@ -1409,8 +1409,10 @@ $("enterPlayer").onclick=async()=>{
   const {error}=await supabaseClient.auth.signInWithOtp({
     email,
     options:{
-      shouldCreateUser:playerAuthMode==="signup",
-      ...(playerAuthMode==="signup"?{data:{display_name:name}}:{})
+      // Entrar também permite criar a conta automaticamente para e-mails novos.
+      // Recuperação nunca cria usuários.
+      shouldCreateUser:playerAuthMode!=="recover",
+      ...(playerAuthMode!=="recover"?{data:{display_name:name}}:{})
     }
   });
   if(error){
@@ -1435,10 +1437,32 @@ $("verifyPlayerCode").onclick=async()=>{
   if(error){setPlayerAuthError("Código inválido ou expirado. Solicite outro e tente novamente.");return;}
   if(playerAuthMode!=="signup"){
     try{
-      const profile=await getOwnPlayerProfile(data.user.id);
+      let profile=await getOwnPlayerProfile(data.user.id);
+      if(!profile&&playerAuthMode==="login"){
+        // Se o e-mail ainda não tinha perfil, cria o perfil após validar o código enviado ao e-mail.
+        const requestedName=String($("playerName").value||"").trim().slice(0,30);
+        if(!requestedName){
+          await supabaseClient.auth.signOut();
+          setPlayerAuthError("Digite um apelido para concluir o cadastro.");
+          return;
+        }
+        const {data:createdProfile,error:profileError}=await supabaseClient
+          .from("xadrez_perfis")
+          .insert({user_id:data.user.id,nome_jogador:requestedName})
+          .select("user_id,nome_jogador")
+          .single();
+        if(profileError){
+          await supabaseClient.auth.signOut();
+          setPlayerAuthError(profileError.code==="23505"
+            ?"Esse apelido já está sendo usado. Escolha outro apelido e tente novamente."
+            :"Não foi possível criar seu perfil. Verifique as permissões da tabela xadrez_perfis no Supabase.");
+          return;
+        }
+        profile=createdProfile;
+      }
       if(!profile){
         await supabaseClient.auth.signOut();
-        setPlayerAuthError("Não encontramos um perfil de jogador para esse e-mail. Se ainda não tem conta, escolha “Criar conta”.");
+        setPlayerAuthError("Não encontramos um perfil para esse e-mail. Use “Entrar” com o apelido desejado para criar seu perfil ou tente “Criar conta”.");
         return;
       }
       if(playerAuthMode==="login"&&String(profile.nome_jogador||"").trim().toLocaleLowerCase("pt-BR")!==String($("playerName").value||"").trim().toLocaleLowerCase("pt-BR")){
@@ -1447,7 +1471,8 @@ $("verifyPlayerCode").onclick=async()=>{
         return;
       }
     }catch(err){
-      setPlayerAuthError("Não foi possível consultar sua conta. Tente novamente.");
+      console.error("Verificação do perfil:",err);
+      setPlayerAuthError("Não foi possível consultar ou criar seu perfil. Tente novamente.");
       return;
     }
   }
