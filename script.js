@@ -1202,6 +1202,7 @@ function executeMove(move,promote='Q'){
   }else if(status==='check'){
     updateStatus(`⚠️ Xeque! ${gameState.turn==='w'?'Brancas':'Pretas'} devem responder.`);
     if(multiMode)enviarMovimentoMulti();else scheduleSave();
+    if(gameMode==="bot"&&gameState.turn==="b")agendarJogadaBot();
   }else{
     updateStatus(`Vez das ${gameState.turn==='w'?'Brancas':'Pretas'}.`);
     if(multiMode)enviarMovimentoMulti();else scheduleSave();
